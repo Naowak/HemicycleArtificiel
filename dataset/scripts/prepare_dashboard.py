@@ -15,6 +15,7 @@ DATA = os.path.join(RACINE, "data", "dataset")
 AMO = os.path.join(RACINE, "data", "sources", "acteurs")
 OUT = os.path.join(RACINE, "data", "dashboard")
 os.makedirs(os.path.join(OUT, "details"), exist_ok=True)
+os.makedirs(os.path.join(OUT, "textes"), exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Familles, groupes, couleurs, ordre gauche -> droite
@@ -166,6 +167,10 @@ def main():
         for line in open(p, encoding="utf-8"):
             t = json.loads(line)
             textes[t["uid"]] = t
+    # Un fichier par texte de loi, en entier, chargé à la demande par la fiche d'un scrutin
+    for t in textes.values():
+        json.dump({k: t.get(k) for k in ("uid", "type", "origine", "titre", "note", "expose_motifs", "articles", "url")},
+                  open(os.path.join(OUT, "textes", t["uid"] + ".json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
 
     # ---------------- passe unique sur les scrutins ----------------
     CODE = {"pour": "p", "contre": "c", "abstention": "a", "non_votant": "n"}
@@ -230,9 +235,9 @@ def main():
             "dossier": {k: r["dossier"].get(k) for k in ("id", "titre", "titre_court", "nature", "lecture")},
             "auteur": r["auteur"], "positions_groupes": r["positions_groupes"],
             "texte": {k: r["texte"].get(k) for k in ("numero_amendement", "article", "dispositif", "expose_sommaire", "signataires", "qualite_jointure", "amendement_uid")},
+            # référence seulement : le texte complet est dans textes/<uid>.json
             "texte_loi": ({"uid": tl["uid"], "titre": tl["titre"], "origine": tl["origine"], "note": tl["note"],
-                           "expose": (tl["expose_motifs"] or "")[:6000] or None, "expose_tronque": len(tl["expose_motifs"] or "") > 6000,
-                           "articles": (tl["articles"] or "")[:4000] or None, "articles_tronques": len(tl["articles"] or "") > 4000,
+                           "expose": bool(tl["expose_motifs"]), "articles": bool(tl["articles"]),
                            "url": tl["url"]} if tl else None),
             "mises_au_point": mises,
             "url_scrutin": f"https://www.assemblee-nationale.fr/dyn/{leg}/scrutins/{r['numero']}",

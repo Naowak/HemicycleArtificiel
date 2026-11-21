@@ -11,7 +11,7 @@ Projet **Hémicycle Artificiel** (hack1robo 2026) : ce jeu de données sert de r
 Il faut seulement Python 3.8 ou plus récent. Le dashboard n'a aucune autre dépendance et ne charge rien depuis internet.
 
 1. **Récupérer le code** (ce dossier, dans le dépôt).
-2. **Télécharger les données** : [hemicycle-data.zip](LIEN_GOOGLE_DRIVE) (565 Mo, 2,9 Go une fois dézippé).
+2. **Télécharger les données** : [hemicycle-data.zip](LIEN_GOOGLE_DRIVE) (533 Mo, 2,9 Go une fois dézippé).
 3. **Dézipper l'archive à la racine de ce dossier.** Elle contient un dossier `data/` :
 
    ```bash

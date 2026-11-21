@@ -85,6 +85,11 @@ const App = {
     if (!this.cache[k]) this.cache[k] = getJSON(`data/${k}.json`);
     return this.cache[k];
   },
+  async texte(uid) {
+    const k = "t_" + uid;
+    if (!this.cache[k]) this.cache[k] = getJSON(`data/textes/${uid}.json`);
+    return this.cache[k];
+  },
   async detail(uid) {
     const k = "d_" + uid;
     if (!this.cache[k]) this.cache[k] = getJSON(`data/details/${uid}.json`);

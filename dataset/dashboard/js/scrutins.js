@@ -207,24 +207,41 @@ const Scrutins = {
         }
       }
       if (tl) {
-        if (tl.expose) {
-          const d = tc.append("details").attr("class", "block").property("open", !(t.dispositif || t.expose_sommaire));
-          d.append("summary").text(`Exposé des motifs du texte${tl.titre ? " — " + tl.titre.slice(0, 90) + (tl.titre.length > 90 ? "…" : "") : ""}`);
-          const dv = d.append("div");
-          dv.append("div").attr("class", "prose").text(tl.expose + (tl.expose_tronque ? "\n[…]" : ""));
-          dv.append("p").attr("class", "small").html(`<a href="${tl.url}" target="_blank" rel="noopener">Texte complet sur assemblee-nationale.fr</a>`);
-        } else {
-          const d = tc.append("details").attr("class", "block");
-          d.append("summary").text("Texte de la loi");
-          d.append("div").attr("class", "small muted").html(`${tl.note === "transmis_par_le_senat_sans_expose" ? "Texte transmis par le Sénat : son exposé des motifs se trouve dans la version déposée au Sénat."
-            : tl.note === "loi_de_finances_format_specifique" ? "Loi de finances : exposé des motifs trop volumineux pour être affiché ici." : "Pas d'exposé des motifs disponible."}
-            <a href="${tl.url}" target="_blank" rel="noopener">Voir le texte</a>`);
-        }
-        if (tl.articles) {
-          const d = tc.append("details").attr("class", "block");
-          d.append("summary").text("Articles du texte déposé");
-          d.append("div").attr("class", "prose").text(tl.articles + (tl.articles_tronques ? "\n[…]" : ""));
-        }
+        // le texte complet est chargé à part (un fichier par texte, partagé par tous ses scrutins)
+        const zone = tc.append("div");
+        const prose = (parent, texte) => {
+          const p = parent.append("div").attr("class", "prose").text(texte);
+          const btn = parent.append("p").attr("class", "small").append("a").attr("href", "#").text("Afficher en entier");
+          btn.on("click", (e) => {
+            e.preventDefault();
+            const ouvert = p.classed("open");
+            p.classed("open", !ouvert);
+            btn.text(ouvert ? "Afficher en entier" : "Réduire");
+          });
+          requestAnimationFrame(() => { if (p.node().scrollHeight <= p.node().clientHeight + 2) btn.remove(); });
+        };
+        const lien = `<a href="${tl.url}" target="_blank" rel="noopener">Voir le texte sur assemblee-nationale.fr</a>`;
+        App.texte(tl.uid).then((tx) => {
+          if (tx.expose_motifs) {
+            const d = zone.append("details").attr("class", "block").property("open", !(t.dispositif || t.expose_sommaire));
+            d.append("summary").text(`Exposé des motifs du texte${tl.titre ? " — " + tl.titre.slice(0, 90) + (tl.titre.length > 90 ? "…" : "") : ""}`);
+            const dv = d.append("div");
+            prose(dv, tx.expose_motifs);
+            dv.append("p").attr("class", "small").html(lien);
+          } else {
+            const d = zone.append("details").attr("class", "block");
+            d.append("summary").text("Texte de la loi");
+            d.append("div").attr("class", "small muted").html(`${tl.note === "transmis_par_le_senat_sans_expose" ? "Texte transmis par le Sénat : son exposé des motifs se trouve dans la version déposée au Sénat."
+              : tl.note === "loi_de_finances_format_specifique" ? "Loi de finances : son « exposé général des motifs » n'est pas découpé." : "Pas d'exposé des motifs disponible."} ${lien}`);
+          }
+          if (tx.articles) {
+            const d = zone.append("details").attr("class", "block");
+            d.append("summary").text("Articles du texte déposé");
+            prose(d.append("div"), tx.articles);
+          }
+        }).catch(() => {
+          zone.append("p").attr("class", "small muted").html(`Texte indisponible dans les données locales. ${lien}`);
+        });
       }
     }
 
