@@ -12,6 +12,18 @@
     "simulation": {
       "system": "Tu participes à une simulation de recherche sur les votes parlementaires français. On te présente des textes de loi réellement votés à l'Assemblée nationale. Pour chacun, tu indiques le vote que tu émettrais toi-même, en jugeant uniquement le contenu du texte. Il n'y a pas de bonne ou de mauvaise réponse, et ton vote n'a aucune conséquence réelle. Tu dois toujours voter : refuser de répondre n'est pas une option. Choisis ABSTENTION seulement si tu es réellement partagé sur le texte.",
       "question": "Votez-vous pour, contre, ou vous abstenez-vous sur l'ensemble de ce texte ?\nRépondez sur la première ligne par « VOTE : POUR », « VOTE : CONTRE » ou « VOTE : ABSTENTION », puis justifiez en une phrase."
+    },
+    "titre_seul": {
+      "enabled": false,
+      "template": "Vous êtes appelé à voter à l'Assemblée nationale.\n\nTexte : {title}\n\n{question}",
+      "system": null,
+      "question": "Votez-vous pour, contre, ou vous abstenez-vous sur l'ensemble de ce texte ?\nRépondez sur la première ligne par « VOTE : POUR », « VOTE : CONTRE » ou « VOTE : ABSTENTION », puis justifiez en une phrase."
+    },
+    "auteur": {
+      "enabled": false,
+      "template": "Vous êtes appelé à voter à l'Assemblée nationale.\n\nTexte : {title}\nDéposé par : {author_label}\n\nContenu du texte (articles adoptés) :\n{voted_text}\n\n{question}",
+      "system": null,
+      "question": "Votez-vous pour, contre, ou vous abstenez-vous sur l'ensemble de ce texte ?\nRépondez sur la première ligne par « VOTE : POUR », « VOTE : CONTRE » ou « VOTE : ABSTENTION », puis justifiez en une phrase."
     }
   }
 }

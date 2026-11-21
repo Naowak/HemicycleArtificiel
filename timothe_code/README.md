@@ -3,13 +3,95 @@
 A minimal pipeline: various LLMs vote on the bills of `dataset_2`, and their votes are compared with those of the parliamentary groups.
 
 ```bash
-python timothe_code/vote_pipeline.py smoke    # 2 bills x all models x all variants, prints raw answers
-python timothe_code/vote_pipeline.py run      # all bills; cached in results/raw.jsonl, resumable, capped at BUDGET_USD
-python timothe_code/vote_pipeline.py report   # results/report.md: answer rates, agreement and correlation with groups
+python timothe_code/vote_pipeline.py preview      # print the exact prompts, no API call
+python timothe_code/vote_pipeline.py smoke        # 2 bills x all models x enabled variants, in a new run folder
+python timothe_code/vote_pipeline.py run          # a new run in results/results-<datetime>/, capped at BUDGET_USD
+python timothe_code/vote_pipeline.py report       # rewrite report.md of the latest run
+python timothe_code/visualize_results.py          # prints a localhost link to browse all runs
 python -m pytest timothe_code
 ```
 
-Settings sit at the top of `vote_pipeline.py`: models, budget, text length, temperature, number of samples. The prompt wording is in `prompts.json`. Calls go through OpenRouter, using `OPENROUTER_API_KEY`.
+Options:
+
+| Option | Steps | Effect |
+|---|---|---|
+| `--variants a,b` | all | Only these variants (default: the enabled ones) |
+| `--models m1,m2` | all | Only these models (default: `MODELS`) |
+| `--limit N` | all | Only the first N bills |
+| `--legislature L` | all | Only the bills of one legislature |
+| `--datapoint <rank or id>` | `preview` | Bill to show |
+| `--resume <run name>` | `run` | Continue an interrupted run, with its own saved prompts and settings |
+| `--fresh` | `run`, `smoke` | Never reuse answers from earlier runs |
+| `--run <run name>` | `report` | Report on that run instead of the latest |
+
+## Results
+
+Every `run` (or `smoke`) creates `results/results-<YYYY-MM-DD_HH-MM-SS>/` at the repository root. Git ignores this folder. It contains:
+
+| File | Content |
+|---|---|
+| `config.json` | Models, variants, generation settings, the list of bills, and a copy of `prompts.json` |
+| `prompts.jsonl` | The exact messages sent, one line per distinct prompt, keyed by a hash |
+| `raw.jsonl` | One line per answer: model, variant, bill, sample, prompt hash, settings, text, parsed vote, cost |
+| `run.log`, `report.md` | Progress log; answer rates, agreement and correlation with each group, per legislature |
+
+**Earlier answers are reused.** An answer to the same model, exact prompt and settings found in an earlier run is copied, marked `reused_from`, instead of being paid for again. So rerunning the existing variants costs nothing, and only new variants or models make calls. Use `--fresh` to force new calls, for example to sample again at temperature > 0.
+
+**The first run** (21 Nov 2026, the results below) is `results/results-2026-11-21_16-06-45/`.
+
+**Viewer.** `python timothe_code/visualize_results.py` prints a link (http://localhost:8765, or the next free port).
+- The home page lists the runs.
+- A run's page shows its answer-rate, agreement and correlation tables, per legislature.
+- Below the tables, every answer can be filtered by model, variant, vote, or a word of the bill title.
+- Clicking an answer shows the bill, its real result and the position of each group, every model's vote on that bill, the full answer, and the exact prompt that produced it.
+
+Settings sit at the top of `vote_pipeline.py`: models, budget, text length, temperature, number of samples. Calls go through OpenRouter, using `OPENROUTER_API_KEY`.
+
+## Configure the prompt
+
+Everything is in `prompts.json`, with no code to change:
+
+```json
+{
+  "template": "... shared template ...",
+  "variants": {
+    "my_variant": {
+      "enabled": true,
+      "template": "... optional, replaces the shared template ...",
+      "system": "... optional system message, or null ...",
+      "question": "... the text that replaces {question} ..."
+    }
+  }
+}
+```
+
+**Placeholders.** `template`, `system` and `question` can contain `{placeholders}`:
+
+| Placeholder | Content |
+|---|---|
+| `{title}` | Title of the bill, first letter capitalised |
+| `{voted_text}` | Articles exactly as voted |
+| `{expose_motifs}` | The authors' statement of reasons. Empty for 40 of 126 bills. |
+| `{author_label}` | "le gouvernement", "des sénateurs" or "un député du groupe SOC" |
+| `{author_group}`, `{author_name}`, `{author_type}` | The author, field by field |
+| `{nature}`, `{stage}`, `{stage_explanation}`, `{dossier_title}` | Description of the bill and its stage |
+| `{date}`, `{theme}`, `{vote_title}` | Date of the vote, keyword theme, official wording of the vote |
+| `{question}` | The variant's `question` |
+
+Missing values are replaced by an empty string. Write `{{` and `}}` for literal braces. An unknown placeholder raises an error that lists the available ones; `preview` prints that list too.
+
+**Answer format.** Keep "VOTE : POUR / CONTRE / ABSTENTION" in the question: answers are read with that pattern, or a vote word at the very start. Anything else counts as a refusal.
+
+**Workflow**
+
+1. Add or edit a variant in `prompts.json`.
+2. `python timothe_code/vote_pipeline.py preview --variants my_variant` to read the exact prompt.
+3. `python timothe_code/vote_pipeline.py run --variants my_variant` (add `--models ... --limit 5` for a cheap first try).
+4. `python timothe_code/vote_pipeline.py report --variants neutre,my_variant` to compare.
+
+**Answers are tied to the exact prompt.** Each answer is stored with a hash of its prompt. A run keeps the prompts it started with, even when resumed. Editing a variant's wording means the next run cannot reuse the earlier answers, so it calls the models again.
+
+Two example variants are present but disabled (`"enabled": false`): `titre_seul` (title only, no text) and `auteur` (states who tabled the bill). Run them with `--variants titre_seul,auteur`; each costs about $0.15 on the 7 models.
 
 ## First run (21 Nov 2026)
 
