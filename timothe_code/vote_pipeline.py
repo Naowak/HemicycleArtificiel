@@ -40,6 +40,19 @@ logger = logging.getLogger(__name__)
 
 RESULTS_ROOT = os.path.join(ROOT, "results")
 RUN_PREFIX = "results-"
+ENV_FILE = os.path.join(ROOT, ".env")
+
+
+def api_key():
+    """OPENROUTER_API_KEY from the .env file at the repository root, else from the environment."""
+    if os.path.exists(ENV_FILE):
+        for line in open(ENV_FILE, encoding="utf-8"):
+            line = line.strip()
+            if line.startswith("OPENROUTER_API_KEY=") and not line.startswith("#"):
+                value = line.split("=", 1)[1].strip().strip('"').strip("'")
+                if value:
+                    return value
+    return os.environ.get("OPENROUTER_API_KEY", "")
 CONFIG_FILE, PROMPTS_LOG, RAW_FILE, REPORT_FILE, LOG_FILE = "config.json", "prompts.jsonl", "raw.jsonl", "report.md", "run.log"
 PROMPTS_FILE = os.path.join(HERE, "prompts.json")
 # Optional per-bill placeholders (e.g. generated arguments): {bill id: {field: text}}.
@@ -190,7 +203,7 @@ def generation_settings(model):
 def call(model, messages, settings):
     """(answer text, usage dict, error string) for one chat completion."""
     body = json.dumps(dict(settings, model=model, messages=messages, usage={"include": True})).encode()
-    headers = {"Authorization": "Bearer " + os.environ[API_KEY_ENV], "Content-Type": "application/json"}
+    headers = {"Authorization": "Bearer " + api_key(), "Content-Type": "application/json"}
     error = None
     for attempt in range(RETRIES):
         wait = 2 ** attempt

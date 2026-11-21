@@ -71,6 +71,7 @@ const App = {
     try {
       if (this.route.tab === "deputes") await Deputes.render(main, this.route);
       else if (this.route.tab === "scrutins") await Scrutins.render(main, this.route);
+      else if (this.route.tab === "modeles") await Modeles.render(main);
       else await General.render(main);
     } catch (err) {
       console.error(err);
