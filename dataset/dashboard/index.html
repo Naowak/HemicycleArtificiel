@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hémicycle — explorer les votes de l'Assemblée nationale</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 40 22" aria-hidden="true">
+        <path d="M2 20a18 18 0 0 1 36 0" fill="none" stroke="currentColor" stroke-width="2.2"/>
+        <path d="M9 20a11 11 0 0 1 22 0" fill="none" stroke="currentColor" stroke-width="2.2" opacity=".55"/>
+        <circle cx="20" cy="19" r="2.2" fill="currentColor"/>
+      </svg>
+      <span>Hémicycle</span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <a data-tab="general">Vue d'ensemble</a>
+      <a data-tab="deputes">Députés & groupes</a>
+      <a data-tab="scrutins">Scrutins</a>
+    </nav>
+    <div class="leg-switch" id="leg-switch" role="group" aria-label="Législature"></div>
+  </header>
+  <main id="main"><div class="loading">Chargement…</div></main>
+  <div id="tooltip" class="tooltip" hidden></div>
+
+  <script src="js/d3.min.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/hemicycle.js"></script>
+  <script src="js/general.js"></script>
+  <script src="js/deputes.js"></script>
+  <script src="js/scrutins.js"></script>
+  <script>App.start();</script>
+</body>
+</html>
