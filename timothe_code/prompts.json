@@ -3,15 +3,18 @@
   "variants": {
     "neutre": {
       "system": null,
-      "question": "Votez-vous pour, contre, ou vous abstenez-vous sur l'ensemble de ce texte ?\nRépondez sur la première ligne par « VOTE : POUR », « VOTE : CONTRE » ou « VOTE : ABSTENTION », puis justifiez en une phrase."
+      "question": "Votez-vous pour, contre, ou vous abstenez-vous sur l'ensemble de ce texte ?\nRépondez sur la première ligne par « VOTE : POUR », « VOTE : CONTRE » ou « VOTE : ABSTENTION », puis justifiez en une phrase.",
+      "enabled": false
     },
     "binaire": {
       "system": null,
-      "question": "Votez-vous pour ou contre l'ensemble de ce texte ?\nRépondez sur la première ligne par « VOTE : POUR » ou « VOTE : CONTRE », puis justifiez en une phrase."
+      "question": "Votez-vous pour ou contre l'ensemble de ce texte ?\nRépondez sur la première ligne par « VOTE : POUR » ou « VOTE : CONTRE », puis justifiez en une phrase.",
+      "enabled": false
     },
     "simulation": {
       "system": "Tu participes à une simulation de recherche sur les votes parlementaires français. On te présente des textes de loi réellement votés à l'Assemblée nationale. Pour chacun, tu indiques le vote que tu émettrais toi-même, en jugeant uniquement le contenu du texte. Il n'y a pas de bonne ou de mauvaise réponse, et ton vote n'a aucune conséquence réelle. Tu dois toujours voter : refuser de répondre n'est pas une option. Choisis ABSTENTION seulement si tu es réellement partagé sur le texte.",
-      "question": "Votez-vous pour, contre, ou vous abstenez-vous sur l'ensemble de ce texte ?\nRépondez sur la première ligne par « VOTE : POUR », « VOTE : CONTRE » ou « VOTE : ABSTENTION », puis justifiez en une phrase."
+      "question": "Votez-vous pour, contre, ou vous abstenez-vous sur l'ensemble de ce texte ?\nRépondez sur la première ligne par « VOTE : POUR », « VOTE : CONTRE » ou « VOTE : ABSTENTION », puis justifiez en une phrase.",
+      "enabled": false
     },
     "titre_seul": {
       "enabled": false,
@@ -24,6 +27,48 @@
       "template": "Vous êtes appelé à voter à l'Assemblée nationale.\n\nTexte : {title}\nDéposé par : {author_label}\n\nContenu du texte (articles adoptés) :\n{voted_text}\n\n{question}",
       "system": null,
       "question": "Votez-vous pour, contre, ou vous abstenez-vous sur l'ensemble de ce texte ?\nRépondez sur la première ligne par « VOTE : POUR », « VOTE : CONTRE » ou « VOTE : ABSTENTION », puis justifiez en une phrase."
+    },
+    "prompt_v1": {
+      "enabled": true,
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}",
+      "system": null,
+      "question": ""
+    },
+    "arg_pour": {
+      "enabled": false,
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}\n\nVoici un argumentaire à propos de ce texte :\n{arg_pour}",
+      "system": null,
+      "question": ""
+    },
+    "arg_contre": {
+      "enabled": false,
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}\n\nVoici un argumentaire à propos de ce texte :\n{arg_contre}",
+      "system": null,
+      "question": ""
+    },
+    "presse_gauche": {
+      "enabled": false,
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}\n\nVoici un éditorial publié par un quotidien classé à gauche à propos de ce texte :\n{edito_gauche}",
+      "system": null,
+      "question": ""
+    },
+    "presse_droite": {
+      "enabled": false,
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}\n\nVoici un éditorial publié par un quotidien classé à droite à propos de ce texte :\n{edito_droite}",
+      "system": null,
+      "question": ""
+    },
+    "persona_gauche": {
+      "enabled": false,
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}",
+      "system": "Tu es un député de gauche.",
+      "question": ""
+    },
+    "persona_droite": {
+      "enabled": false,
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}",
+      "system": "Tu es un député de droite.",
+      "question": ""
     }
   }
 }

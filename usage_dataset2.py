@@ -32,10 +32,15 @@ LONG_TEXT_FIELDS = ("voted_text", "expose_motifs")
 
 # ---------------------------------------------------------------- loading
 
-def load(path=DATASET_PATH):
-    """All datapoints, ordered by rank (vote date)."""
+def load(path=DATASET_PATH, legislature=None):
+    """Datapoints ordered by rank: legislature 17 first, then 16, then 15, each by vote date.
+
+    legislature: keep only this one (15, 16 or 17). Groups differ between legislatures, so
+    comparisons with groups must be made one legislature at a time.
+    """
     with open(path, encoding="utf-8") as f:
-        return [json.loads(line) for line in f]
+        dps = [json.loads(line) for line in f]
+    return [dp for dp in dps if legislature is None or dp["legislature"] == legislature]
 
 
 def get(key, datapoints):
@@ -183,16 +188,22 @@ def show(dp, total=None, full=False):
 
 
 def show_list(datapoints):
-    print("rank  date        id               minority  title")
+    print("rank  leg  date        id               minority  title")
     for dp in datapoints:
-        print("%4d  %s  %-15s  %7.0f%%  %s" % (dp["rank"], dp["date"], dp["id"], 100 * dp["result"]["minority_share"],
+        print("%4d  %3d  %s  %-15s  %7.0f%%  %s" % (dp["rank"], dp["legislature"], dp["date"], dp["id"], 100 * dp["result"]["minority_share"],
                                              dp["text_content"]["title"][:70]))
 
 
 def show_overview(datapoints):
+    for leg in sorted({dp["legislature"] for dp in datapoints}, reverse=True):
+        show_legislature([dp for dp in datapoints if dp["legislature"] == leg], leg)
+    print("\nUse: python usage_dataset2.py --list | python usage_dataset2.py <rank or id> [--full] | --legislature 16")
+
+
+def show_legislature(datapoints, leg):
     div = divisive(datapoints)
     tc = [dp["text_content"] for dp in datapoints]
-    _title("dataset_2 overview")
+    _title("dataset_2, legislature %d" % leg)
     print("datapoints     : %d (%s to %s), %d divisive (minority >= %d %%)"
           % (len(datapoints), datapoints[0]["date"], datapoints[-1]["date"], len(div), 100 * DIVISIVE_MIN_MINORITY))
     print("adopted        : %d" % sum(dp["result"]["adopted"] for dp in datapoints))
@@ -201,7 +212,7 @@ def show_overview(datapoints):
     print("expose_motifs  : %d of %d" % (sum(bool(t["expose_motifs"]) for t in tc), len(tc)))
     print("individual votes: %d" % sum(len(dp["votes"]) for dp in datapoints))
 
-    _title("groups on the divisive datapoints (min 3 voters, NI excluded)")
+    _title("legislature %d: groups on the divisive datapoints (min 3 voters, NI excluded)" % leg)
     table = position_table(div, min_voters=3, exclude=("NI",))
     always_for = constant_positions(1.0, div)
     always_abstain = constant_positions(0.0, div)
@@ -210,7 +221,6 @@ def show_overview(datapoints):
         p = table[group]
         print("%-9s %6d %+9.2f %18.2f %21.2f" % (group, len(p), sum(p.values()) / len(p),
                                                agreement(always_for, p), agreement(always_abstain, p)))
-    print("\nUse: python usage_dataset2.py --list | python usage_dataset2.py <rank or id> [--full]")
 
 
 def main():
@@ -219,12 +229,14 @@ def main():
     parser.add_argument("--list", action="store_true", help="one line per datapoint")
     parser.add_argument("--full", action="store_true", help="do not cut long texts")
     parser.add_argument("--dataset", default=DATASET_PATH)
+    parser.add_argument("--legislature", type=int, help="only this legislature (overview and list)")
     args = parser.parse_args()
-    dps = load(args.dataset)
+    everything = load(args.dataset)
+    dps = [dp for dp in everything if args.legislature in (None, dp["legislature"])]
     if args.list:
         show_list(dps)
     elif args.datapoint:
-        show(get(args.datapoint, dps), len(dps), args.full)
+        show(get(args.datapoint, everything), len(everything), args.full)
     else:
         show_overview(dps)
 

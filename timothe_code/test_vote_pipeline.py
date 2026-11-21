@@ -15,6 +15,10 @@ import vote_pipeline as vp  # noqa: E402
     ("Vote: abstention. Je suis partag\u00e9.", "abstain"),
     ("POUR. Le texte prot\u00e8ge...", "for"),
     ("Je ne peux pas exprimer d'opinion politique.", None),
+    ("Je vais appr\u00e9cier le texte.\n\nPOUR \u2014 Le texte renforce...", "for"),
+    ("Je ne peux pas voter, mais voici mon avis : **ABSTENTION**.", "abstain"),
+    ("Pour \u00e9valuer ce texte, je pense qu'il faut voter contre.", None),
+    ("Pour\nLe texte est utile.", "for"),
     ("", None),
     (None, None),
 ])
@@ -63,3 +67,27 @@ def test_prompt_hash_follows_the_wording():
     m1 = vp.build_messages(DP, "a", PROMPTS)
     m2 = vp.build_messages(DP, "a", dict(PROMPTS, template="{title}|{question}"))
     assert vp.prompt_hash(m1) == vp.prompt_hash(vp.build_messages(DP, "a", PROMPTS)) != vp.prompt_hash(m2)
+
+
+def test_select_datapoints_filters_and_ids(monkeypatch):
+    all_dps = vp.ds.load()
+    monkeypatch.setattr(vp, "DIVISIVE_ONLY", False)
+    monkeypatch.setattr(vp, "MAX_TEXT_CHARS", None)
+    assert len(vp.select_datapoints()) == len(all_dps)
+    monkeypatch.setattr(vp, "MAX_TEXT_CHARS", 30000)
+    assert all(d["text_content"]["voted_text_chars"] <= 30000 for d in vp.select_datapoints())
+    monkeypatch.setattr(vp, "DIVISIVE_ONLY", True)
+    assert all(d["result"]["minority_share"] >= 0.05 for d in vp.select_datapoints())
+    picked = vp.select_datapoints(keys=["2", all_dps[4]["id"]])
+    assert [d["id"] for d in picked] == [all_dps[1]["id"], all_dps[4]["id"]]
+
+
+def test_extra_fields_and_missing_field(monkeypatch):
+    monkeypatch.setattr(vp, "_extra_fields", {"B1": {"arg_pour": "A+", "edito_gauche": "E"}, "B2": {"arg_pour": "A2"}})
+    prompts = {"template": "{title}|{arg_pour}", "variants": {"a": {"system": None, "question": ""},
+                                                              "b": {"template": "{edito_gauche}", "system": None, "question": ""}}}
+    b1, b2 = dict(DP, id="B1"), dict(DP, id="B2")
+    assert vp.build_messages(b1, "a", prompts)[0]["content"] == "Proposition de loi x|A+"
+    assert vp.build_messages(b1, "b", prompts)[0]["content"] == "E"
+    with pytest.raises(vp.MissingField):
+        vp.build_messages(b2, "b", prompts)

@@ -5,8 +5,10 @@ Usage, from the repository root:
     python timothe_code/vote_pipeline.py smoke    # 2 datapoints x all models x enabled variants, prints raw answers
     python timothe_code/vote_pipeline.py run      # a new run in results/results-<datetime>/
     python timothe_code/vote_pipeline.py report   # rewrite report.md of the latest run (or --run <name>)
-Options: --variants a,b  --models m1,m2  --limit N  --legislature L  --datapoint <rank or id> (preview)
-         --resume <run name> (run: continue an interrupted run)  --fresh (run: never reuse earlier answers)
+Options: --variants a,b  --models m1,m2  --ids 19,40,...  --limit N  --legislature L  --divisive-only
+         --max-chars N  --temperature T  --samples K  --max-tokens N  --budget USD
+         --datapoint <rank or id> (preview)  --resume <run name>  --fresh (never reuse earlier answers)
+Defaults are the constants below; the values used are saved in each run's config.json.
 
 Each run folder holds config.json (settings and a copy of prompts.json),
 prompts.jsonl (exact messages, by hash), raw.jsonl (answers), run.log and
@@ -40,50 +42,72 @@ RESULTS_ROOT = os.path.join(ROOT, "results")
 RUN_PREFIX = "results-"
 CONFIG_FILE, PROMPTS_LOG, RAW_FILE, REPORT_FILE, LOG_FILE = "config.json", "prompts.jsonl", "raw.jsonl", "report.md", "run.log"
 PROMPTS_FILE = os.path.join(HERE, "prompts.json")
+# Optional per-bill placeholders (e.g. generated arguments): {bill id: {field: text}}.
+EXTRA_FIELDS_FILE = os.path.join(HERE, "extra_fields.json")
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
+API_KEY_ENV = "OPENROUTER_API_KEY_2"  # the team's key
 
 MODELS = [
-    "anthropic/claude-haiku-5.5",
     "openai/gpt-6-luna",
+    "anthropic/claude-haiku-5.5",
     "google/gemini-3.5-flash-lite",
     "mistralai/mistral-small-2603",
     "deepseek/deepseek-v4.1-flash",
     "qwen/qwen3.8-flash",
-    "meta-llama/llama-4-scout",
+    "moonshotai/kimi-k3.1-pro",
+    "x-ai/grok-4.3",
 ]
 # Models whose reasoning cannot be disabled: low effort, and room for the hidden reasoning tokens.
 REASONING_REQUIRED = {"google/gemini-3.5-flash-lite": {"effort": "low"}}
 MAX_TOKENS_WITH_REASONING = 2000
 BUDGET_USD = 1.60
-MAX_TEXT_CHARS = 30000
+# Bill selection. MAX_TEXT_CHARS = None keeps every length.
+MAX_TEXT_CHARS = None
+DIVISIVE_ONLY = False
 SMOKE_DATAPOINTS = 2
-TEMPERATURE = 0.0
-MAX_TOKENS = 200
+TEMPERATURE = None  # None = not sent: each provider's default temperature
+MAX_TOKENS = 400
 N_SAMPLES = 1
 N_WORKERS = 8
 TIMEOUT_S = 180
-RETRIES = 4
+RETRIES = 6
+# New OpenRouter accounts are limited to 20 requests per minute per model.
+RATE_LIMIT_WAIT_S = 15
 MIN_GROUP_VOTERS = 3
 EXCLUDED_GROUPS = ("NI",)
 N_EXAMPLES = 2
 
 VOTE_RE = re.compile(r"VOTE\W{0,6}(POUR|CONTRE|ABSTENTION)", re.I)
-FIRST_WORD_RE = re.compile(r"^\W*(POUR|CONTRE|ABSTENTION)\b", re.I)
+CAPITALS_RE = re.compile(r"\b(POUR|CONTRE|ABSTENTION)\b")
+LONE_FIRST_LINE_RE = re.compile(r"^\W*(POUR|CONTRE|ABSTENTION)\W*$", re.I | re.M)
 LABELS = {"POUR": "for", "CONTRE": "against", "ABSTENTION": "abstain"}
 
 
 # ---------------------------------------------------------------- prompts
 
 def parse_vote(text):
-    """'for' / 'against' / 'abstain', or None when the answer contains no vote."""
+    """'for' / 'against' / 'abstain', or None when the answer contains no vote.
+
+    Tried in order: "VOTE : X" (any case); X in capitals anywhere, which also
+    catches a vote after a preamble or a disclaimer ("mon avis : **ABSTENTION**");
+    a first line made of X alone in any case. Lower-case "pour" / "contre" in
+    a sentence is ordinary French and never read as a vote.
+    """
     if not text:
         return None
-    m = VOTE_RE.search(text) or FIRST_WORD_RE.search(text)
+    first_line = text.strip().split("\n", 1)[0]
+    m = VOTE_RE.search(text) or CAPITALS_RE.search(text) or LONE_FIRST_LINE_RE.match(first_line)
     return LABELS[m.group(1).upper()] if m else None
 
 
-def select_datapoints(legislature=None):
-    return [dp for dp in ds.divisive(ds.load()) if dp["text_content"]["voted_text_chars"] <= MAX_TEXT_CHARS
+def select_datapoints(legislature=None, keys=None):
+    """Bills of a run: explicit ranks / ids, or the dataset filtered by legislature, DIVISIVE_ONLY and MAX_TEXT_CHARS."""
+    dps = ds.load()
+    if keys:
+        return [ds.get(k, dps) for k in keys]
+    if DIVISIVE_ONLY:
+        dps = ds.divisive(dps)
+    return [dp for dp in dps if (not MAX_TEXT_CHARS or dp["text_content"]["voted_text_chars"] <= MAX_TEXT_CHARS)
             and (legislature is None or dp["legislature"] == legislature)]
 
 
@@ -95,6 +119,23 @@ def author_label(author):
     return "un d\u00e9put\u00e9 du groupe %s" % author["group"] if author["group"] else "un d\u00e9put\u00e9"
 
 
+class MissingField(KeyError):
+    """A placeholder exists for some bills but not for this one: the bill is skipped for that variant."""
+
+
+_extra_fields = None
+
+
+def extra_fields():
+    global _extra_fields
+    if _extra_fields is None:
+        _extra_fields = {}
+        if os.path.exists(EXTRA_FIELDS_FILE):
+            with open(EXTRA_FIELDS_FILE, encoding="utf-8") as f:
+                _extra_fields = json.load(f)
+    return _extra_fields
+
+
 def prompt_fields(dp):
     """Values usable as {placeholders} in prompts.json; missing values become ""."""
     t = dp["text_content"]
@@ -103,6 +144,7 @@ def prompt_fields(dp):
     a = t["author"]
     fields.update(author_type=a["type"], author_name=a["name"] or "", author_group=a["group"] or "",
                   author_label=author_label(a), date=dp["date"], theme=dp["theme"] or "", vote_title=dp["vote_title"])
+    fields.update(extra_fields().get(dp.get("id"), {}))
     return fields
 
 
@@ -114,6 +156,8 @@ def build_messages(dp, variant, prompts):
         user = v.get("template", prompts["template"]).format(**fields)
         system = v["system"].format(**fields) if v.get("system") else None
     except KeyError as e:
+        if any(e.args[0] in extra for extra in extra_fields().values()):
+            raise MissingField(e.args[0])
         raise KeyError("unknown placeholder %s in variant %r; available: %s" % (e, variant, ", ".join(sorted(fields))))
     messages = [{"role": "system", "content": system}] if system else []
     return messages + [{"role": "user", "content": user}]
@@ -137,15 +181,19 @@ def enabled_variants(prompts):
 def generation_settings(model):
     reasoning = REASONING_REQUIRED.get(model, {"enabled": False})
     max_tokens = MAX_TOKENS_WITH_REASONING if model in REASONING_REQUIRED else MAX_TOKENS
-    return {"temperature": TEMPERATURE, "max_tokens": max_tokens, "reasoning": reasoning}
+    settings = {"max_tokens": max_tokens, "reasoning": reasoning}
+    if TEMPERATURE is not None:
+        settings["temperature"] = TEMPERATURE
+    return settings
 
 
 def call(model, messages, settings):
     """(answer text, usage dict, error string) for one chat completion."""
     body = json.dumps(dict(settings, model=model, messages=messages, usage={"include": True})).encode()
-    headers = {"Authorization": "Bearer " + os.environ["OPENROUTER_API_KEY"], "Content-Type": "application/json"}
+    headers = {"Authorization": "Bearer " + os.environ[API_KEY_ENV], "Content-Type": "application/json"}
     error = None
     for attempt in range(RETRIES):
+        wait = 2 ** attempt
         try:
             req = urllib.request.Request(API_URL, data=body, headers=headers)
             with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
@@ -157,11 +205,13 @@ def call(model, messages, settings):
                 return text, out.get("usage") or {}, None
         except urllib.error.HTTPError as e:
             error = "HTTP %s %s" % (e.code, e.read()[:300].decode(errors="replace"))
-            if e.code < 500 and e.code != 429:
+            if e.code == 429:
+                wait = RATE_LIMIT_WAIT_S * (attempt + 1)
+            elif e.code < 500:
                 break
         except Exception as e:  # network errors, timeouts
             error = repr(e)[:300]
-        time.sleep(2 ** attempt)
+        time.sleep(wait)
     return None, {}, error
 
 
@@ -206,7 +256,13 @@ def earlier_answers(current_dir, results_root=RESULTS_ROOT):
     return out
 
 
-def run(run_dir, datapoints, models, variants, n_samples, reuse=True):
+def require_key():
+    if not os.environ.get(API_KEY_ENV):
+        sys.exit("environment variable %s is not set (choose another with --key-env)" % API_KEY_ENV)
+
+
+def run(run_dir, datapoints, models, variants, n_samples, reuse=True, note=None):
+    require_key()
     config_path = os.path.join(run_dir, CONFIG_FILE)
     if os.path.exists(config_path):  # resumed run: keep its own prompts and settings
         with open(config_path, encoding="utf-8") as f:
@@ -217,14 +273,22 @@ def run(run_dir, datapoints, models, variants, n_samples, reuse=True):
         prompts = load_prompts()
         config = {"created": time.strftime("%Y-%m-%d %H:%M:%S"), "models": models, "variants": variants,
                   "n_samples": n_samples, "settings": {m: generation_settings(m) for m in models},
-                  "budget_usd": BUDGET_USD, "max_text_chars": MAX_TEXT_CHARS,
-                  "datapoints": [dp["id"] for dp in datapoints], "prompts": prompts}
+                  "budget_usd": BUDGET_USD, "max_text_chars": MAX_TEXT_CHARS, "divisive_only": DIVISIVE_ONLY,
+                  "datapoints": [dp["id"] for dp in datapoints], "prompts": prompts, "note": note}
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, ensure_ascii=False, indent=1)
     handler = logging.FileHandler(os.path.join(run_dir, LOG_FILE), encoding="utf-8")
     logger.addHandler(handler)
 
-    messages = {(v, dp["id"]): build_messages(dp, v, prompts) for v in variants for dp in datapoints}
+    messages = {}
+    for v in variants:
+        for dp in datapoints:
+            try:
+                messages[(v, dp["id"])] = build_messages(dp, v, prompts)
+            except MissingField:
+                pass  # this bill has no value for a placeholder of this variant
+        if not any(key[0] == v for key in messages):
+            sys.exit("variant %r has no bill with all its placeholders" % v)
     hashes = {key: prompt_hash(m) for key, m in messages.items()}
     logged = {p["hash"] for p in read_jsonl(os.path.join(run_dir, PROMPTS_LOG))}
     with open(os.path.join(run_dir, PROMPTS_LOG), "a", encoding="utf-8") as f:
@@ -236,8 +300,10 @@ def run(run_dir, datapoints, models, variants, n_samples, reuse=True):
 
     done = read_jsonl(os.path.join(run_dir, RAW_FILE))
     seen = {(r["model"], r["variant"], r["id"], r["sample"]) for r in done if r["text"] is not None}
-    tasks = [(m, v, dp, k) for v in variants for m in models for dp in datapoints for k in range(n_samples)
-             if (m, v, dp["id"], k) not in seen]
+    # Samples are the outer loop: an interrupted run leaves complete passes over the bills. Models vary
+    # fastest, so parallel calls spread over models (per-model rate limits).
+    tasks = [(m, v, dp, k) for k in range(n_samples) for v in variants for dp in datapoints for m in models
+             if (m, v, dp["id"], k) not in seen and (v, dp["id"]) in messages]
     earlier = earlier_answers(run_dir) if reuse else {}
     lock = threading.Lock()
     state = {"spent": sum((r["usage"].get("cost") or 0) for r in done if not r.get("reused_from")), "n": 0, "reused": 0}
@@ -250,7 +316,7 @@ def run(run_dir, datapoints, models, variants, n_samples, reuse=True):
 
     def work(task):
         model, variant, dp, sample = task
-        phash, settings = hashes[(variant, dp["id"])], generation_settings(model)
+        phash, settings = hashes[(variant, dp["id"])], config["settings"].get(model) or generation_settings(model)
         old = earlier.get(reuse_key(model, phash, sample, settings))
         if old:
             rec = dict(old[1], variant=variant, id=dp["id"], reused_from=old[0])
@@ -290,6 +356,8 @@ def run_data(run_dir):
         config = json.load(f)
     ids = set(config["datapoints"])
     records = [r for r in read_jsonl(os.path.join(run_dir, RAW_FILE)) if r["text"] is not None and r["id"] in ids]
+    for r in records:  # re-read, so that parser fixes also apply to earlier runs
+        r["label"] = parse_vote(r["text"])
     return config, records, [dp for dp in ds.load() if dp["id"] in ids]
 
 
@@ -370,6 +438,7 @@ def preview(prompts, datapoints, variant, key):
 
 
 def main():
+    global TEMPERATURE, N_SAMPLES, MAX_TOKENS, BUDGET_USD, MAX_TEXT_CHARS, DIVISIVE_ONLY, API_KEY_ENV
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("step", choices=["preview", "smoke", "run", "report"])
     parser.add_argument("--variants", help="comma-separated variants (default: all enabled ones)")
@@ -380,13 +449,31 @@ def main():
     parser.add_argument("--resume", help="run: name of an interrupted run to continue")
     parser.add_argument("--run", help="report: run name (default: the latest)")
     parser.add_argument("--fresh", action="store_true", help="run: never reuse answers from earlier runs")
+    parser.add_argument("--ids", help="comma-separated bill ranks or vote ids (replaces the filters)")
+    parser.add_argument("--divisive-only", action="store_true", help="only bills with a minority of at least 5 %%")
+    parser.add_argument("--max-chars", type=int, help="skip bills whose voted text is longer (0 = no limit)")
+    parser.add_argument("--temperature", type=float, help="default: not sent, i.e. each provider's default")
+    parser.add_argument("--samples", type=int, help="answers per bill and model")
+    parser.add_argument("--max-tokens", type=int, help="answer length cap (models without forced reasoning)")
+    parser.add_argument("--budget", type=float, help="spending cap of the run, in USD")
+    parser.add_argument("--key-env", help="environment variable holding the OpenRouter key (default: %s)" % API_KEY_ENV)
+    parser.add_argument("--note", help="run: short description shown in the results viewer")
     args = parser.parse_args()
+    API_KEY_ENV = args.key_env or API_KEY_ENV
+    TEMPERATURE = TEMPERATURE if args.temperature is None else args.temperature
+    N_SAMPLES = N_SAMPLES if args.samples is None else args.samples
+    MAX_TOKENS = MAX_TOKENS if args.max_tokens is None else args.max_tokens
+    BUDGET_USD = BUDGET_USD if args.budget is None else args.budget
+    MAX_TEXT_CHARS = MAX_TEXT_CHARS if args.max_chars is None else (args.max_chars or None)
+    DIVISIVE_ONLY = DIVISIVE_ONLY or args.divisive_only
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     prompts = load_prompts()
     variants = args.variants.split(",") if args.variants else enabled_variants(prompts)
     models = args.models.split(",") if args.models else MODELS
-    datapoints = select_datapoints(args.legislature)
+    datapoints = select_datapoints(args.legislature, args.ids.split(",") if args.ids else None)
     datapoints = datapoints[: args.limit] if args.limit else datapoints
+    if args.step in ("smoke", "run"):
+        require_key()
     if args.step == "preview":
         for v in variants:
             preview(prompts, datapoints, v, args.datapoint)
@@ -398,7 +485,7 @@ def main():
                                                  (r["text"] or r["error"] or "").replace("\n", " ")[:160]))
     elif args.step == "run":
         run_dir = os.path.join(RESULTS_ROOT, args.resume) if args.resume else new_run_dir()
-        run(run_dir, datapoints, models, variants, N_SAMPLES, not args.fresh)
+        run(run_dir, datapoints, models, variants, N_SAMPLES, not args.fresh, args.note)
         print("results in", run_dir)
     else:
         runs = list_runs()

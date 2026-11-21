@@ -2,7 +2,7 @@
 
 A benchmark of real votes of the French Assemblée nationale, to compare how language models and political groups vote on the same bills.
 
-> **Each datapoint is one recorded final vote on a whole bill** in the Assemblée nationale's 17th legislature, between 6 November 2024 and 29 October 2026. The vote:
+> **Each datapoint is one recorded final vote on a whole bill** in the Assemblée nationale, in the 15th, 16th or 17th legislature (July 2017 to October 2026). The vote:
 > - took place at the bill's **first reading** in the Assemblée;
 > - was on a **law** (budget laws and resolutions excluded);
 > - is **cited by the bill's official legislative file**;
@@ -10,7 +10,15 @@ A benchmark of real votes of the French Assemblée nationale, to compare how lan
 >
 > A datapoint holds **the text exactly as voted**, **the official result**, **the position of every parliamentary group** and **the vote of every MP** who took part.
 
-**126 datapoints, all adopted bills**, 57 of which divided the chamber.
+**354 datapoints, all adopted bills**, 172 of which divided the chamber:
+
+| Legislature | Period of the votes | Datapoints | Divisive | Government bills' share of authors | Voted text, median length |
+|---|---|---|---|---|---|
+| 17 | Nov 2024 - Oct 2026 | 126 | 57 | 14 of 126 | 5,000 characters |
+| 16 | Jul 2022 - May 2024 | 116 | 56 | 36 of 116 | 6,100 characters |
+| 15 | Jul 2017 - Feb 2022 | 112 | 59 | 65 of 112 | 16,400 characters |
+
+**Groups differ between legislatures**, so every comparison with groups is made one legislature at a time. The 15th legislature has many long government bills: its texts hold 57 % of the characters of the whole dataset.
 
 - Data: `dataset_2/data/datapoints.jsonl`, one JSON object per line, not versioned.
 - Code: `dataset_2/scripts/build.py` builds the data; `usage_dataset2.py`, at the repository root, reads it.
@@ -27,23 +35,23 @@ A benchmark of real votes of the French Assemblée nationale, to compare how lan
 
 ### Notation
 
-- $\mathcal{D}$: the 126 datapoints; $\mathcal{M}$: the 644 MPs who voted at least once; $\mathcal{G}$: the 12 group acronyms. `NI` (non-attached MPs) is listed like a group but is not a political bloc.
+- $\mathcal{D}_\ell$: the datapoints of legislature $\ell$; $\mathcal{G}_\ell$: its groups, each with a political family. `NI` (non-attached MPs) is listed like a group but is not a political bloc. The figures below are for the 17th legislature unless stated.
 - $v(i, d) \in \{+1, -1, 0\}$: vote of MP $i$ on datapoint $d$ (for, against, abstain). It is **undefined when $i$ was absent**, which is the common case: 144.5 voters per datapoint in median (35 to 566), out of 577.
 - $n_g^{+}(d), n_g^{-}(d), n_g^{0}(d)$: votes of the members of group $g$ present, and $N_g(d)$ their total.
 - **Position of a group**: undefined when $N_g(d) = 0$, otherwise
 
 $$\pi_g(d) = \frac{n_g^{+}(d) - n_g^{-}(d)}{N_g(d)} \in [-1, 1]$$
 
-- **Minority share**: $m(d) = \min(\text{for}, \text{against}) / (\text{for} + \text{against})$. A datapoint is *divisive* when $m(d) \geq 0.05$: 57 of the 126.
+- **Minority share**: $m(d) = \min(\text{for}, \text{against}) / (\text{for} + \text{against})$. A datapoint is *divisive* when $m(d) \geq 0.05$: 172 of the 354.
 - $T(d)$: everything about the text, stored in `text_content`.
 
 ### Fields
 
 | Field | Content |
 |---|---|
-| `rank` | Position by vote date, from 1 |
+| `rank` | Position in the file, from 1: legislature 17 first (ranks 1-126, unchanged since the first version), then 16, then 15, each by vote date |
 | `id` | Official vote identifier, e.g. `VTANR5L17V1304`. The stable key: use it to store results. |
-| `legislature`, `date` | 17; `YYYY-MM-DD` |
+| `legislature`, `date` | 15, 16 or 17; `YYYY-MM-DD` |
 | `vote_title` | Official wording of the vote |
 | `vote_kind` | `ordinaire` (109) or `solennel` (17; scheduled votes on major bills, with high turnout) |
 | `requested_by` | Who asked for the recorded vote: a group (109) or the Conference of Presidents (17) |
@@ -51,7 +59,7 @@ $$\pi_g(d) = \frac{n_g^{+}(d) - n_g^{-}(d)}{N_g(d)} \in [-1, 1]$$
 | `vote_url` | Official page of the vote |
 | `text_content` | $T(d)$, below |
 | `result` | `for`, `against`, `abstain`, `non_voting`, `adopted` (always true), `minority_share` $= m(d)$ |
-| `group_positions` | Per group: `for`, `against`, `abstain`, `voters` $= N_g(d)$, `position` $= \pi_g(d)$, `null` if nobody voted |
+| `group_positions` | Per group with at least one voter: `for`, `against`, `abstain`, `voters` $= N_g(d)$, `position` $= \pi_g(d)$, and `family` (one of Yannis's 7 political families, e.g. `gauche`, `bloc_central`, `droite_radicale`). Groups renamed during a legislature are merged under one name (NG and SOC-A into SOC, MODEM into DEM, the successive UDI groups into UDI). |
 | `votes` | One entry per MP who voted: `deputy_id`, `name`, `group` (at the time of the vote), `family` (Yannis's 7 political families), `vote` $= v(i, d)$, `proxy`, and `correction` (the vote the MP said afterwards they meant to cast, else `null`) |
 
 `text_content`:
@@ -65,7 +73,7 @@ $$\pi_g(d) = \frac{n_g^{+}(d) - n_g^{-}(d)}{N_g(d)} \in [-1, 1]$$
 | `dossier_id`, `dossier_title` | The official legislative file |
 | `voted_text`, `voted_text_id`, `voted_text_url`, `voted_text_chars` | **The text exactly as voted**: the adopted version, articles only. About 5,000 characters in median, 10 texts above 60,000, at most 239,000. |
 | `tabled_text_id` | The text as tabled at the Assemblée for this reading |
-| `expose_motifs`, `expose_motifs_note` | Statement of reasons, available for 86 of 126. When missing, the note says why: 34 bills came from the Senate, whose Assemblée version has none; 6 tabled texts are absent from Yannis's dataset. |
+| `expose_motifs`, `expose_motifs_note` | Statement of reasons, available for 233 of 354. When missing, the note says why: the bill came from the Senate, whose Assemblée version has none, or the tabled text is absent from Yannis's dataset. |
 
 No prompt is stored: prompts are assembled from `text_content` (section 5).
 
@@ -82,17 +90,19 @@ No prompt is stored: prompts are assembled from `text_content` (section 5).
 
 ### Selection
 
-| Step | Rule | Why | Votes left |
+| Step | Rule | Why | Votes left (17th / 16th / 15th) |
 |---|---|---|---|
-| | Recorded votes of the 17th legislature | One set of groups, comparable across items | 10,098 |
-| 1 | Final vote on a whole bill | One clear question per item: "do you adopt this bill?". Amendments are unreadable without the article they change. | 234 |
-| 2 | No budget law | Hundreds of unrelated measures; some votes cover only part of the budget | 224 |
-| 3 | The official legislative file cites the vote and names the text adopted at that vote | No ambiguous link. Matching by title gets about 6 % of whole-bill votes wrong. | 197 |
-| 4 | First reading | At later readings, the published text only contains the articles still in dispute with the Senate | 132 |
-| 5 | Adopted text published | The model must read exactly what MPs voted. Rejected bills have no adopted version, and the latest votes are not published yet. | 126 |
-| 6 | One vote per bill | Independent items; no bill had two votes left | 126 |
+| | Recorded votes of the legislature | | 10,098 / 4,105 / 4,417 |
+| 1 | Final vote on a whole bill | One clear question per item: "do you adopt this bill?". Amendments are unreadable without the article they change. | 234 / 220 / 376 |
+| 2 | No budget law | Hundreds of unrelated measures; some votes cover only part of the budget | 224 / 214 / 340 |
+| 3 | The official legislative file cites the vote and names the text adopted at that vote | No ambiguous link. Matching by title gets about 6 % of whole-bill votes wrong. | 197 / 174 / 185 |
+| 4 | First reading | At later readings, the published text only contains the articles still in dispute with the Senate | 132 / 123 / 112 |
+| 5 | Adopted text published | The model must read exactly what MPs voted. Rejected bills have no adopted version, and the latest votes are not published yet. | 126 / 117 / 112 |
+| 6 | One vote per bill | Independent items | 126 / 116 / 112 |
 
-Divisiveness is not a selection rule. It is a field, `minority_share`, so analyses can keep all 126 votes or only the 57 divisive ones.
+Counts are given for the 17th / 16th / 15th legislature.
+
+Divisiveness is not a selection rule. It is a field, `minority_share`, so analyses can keep every vote or only the divisive ones.
 
 ### Why the text as voted
 
@@ -108,7 +118,7 @@ python -m pytest dataset_2/tests       # 15 tests: parsing, links, cleaning, pos
 
 ## 4. Things to know before interpreting results
 
-**All 126 bills were adopted.** A model that always answers "for" already agrees a lot with the groups that pass bills. These are the reference points on the 57 divisive datapoints, with a group position counted only when at least 3 of its members voted, and NI excluded:
+**All 354 bills were adopted.** A model that always answers "for" already agrees a lot with the groups that pass bills. These are the reference points for the 17th legislature, on its 57 divisive datapoints, with a group position counted only when at least 3 of its members voted, and NI excluded (`python usage_dataset2.py` prints the same table for each legislature):
 
 | Group | Positions known | Mean position | Agreement of "always for" | Agreement of "always abstain" |
 |---|---|---|---|---|
@@ -130,7 +140,9 @@ Consequences:
 - **A model that abstains or refuses sits at about 0.55 from every group**: neutrality must be told apart from abstention.
 - Always report these reference points, plus the correlation between model and group positions, which ignores a constant tendency.
 
-**Who wrote the bills.** EPR 21, SOC 18, LIOT 9, DEM 9, HOR 8, DR 5, ECOS 5, LFI-NFP 5, GDR 4; Senate 26, government 14. No bill comes from RN or UDR, and groups almost always vote for their own bills. A group's position therefore also reflects which bills reached the agenda.
+**Who wrote the bills.** In the 17th legislature: EPR 21, SOC 18, LIOT 9, DEM 9, HOR 8, DR 5, ECOS 5, LFI-NFP 5, GDR 4; Senate 26, government 14. No bill comes from RN or UDR, and groups almost always vote for their own bills. A group's position therefore also reflects which bills reached the agenda. The earlier legislatures, which had a government majority, are dominated by government bills (36 of 116 in the 16th, 65 of 112 in the 15th) and by bills of the majority group.
+
+**Incomplete official lists.** For 3 datapoints of the 15th and 16th legislatures, the published list of individual votes does not add up to the official count.
 
 **Small groups are noisy.** LIOT, GDR and UDR have 3 or more members voting on only 29 to 38 of the 57 divisive votes. With fewer, one or two MPs decide the group's position.
 
@@ -143,8 +155,9 @@ Consequences:
 ### Look at the data
 
 ```bash
-python usage_dataset2.py              # overview, including the reference points above
-python usage_dataset2.py --list       # one line per datapoint: rank, date, id, minority share, title
+python usage_dataset2.py              # overview of each legislature, including the reference points above
+python usage_dataset2.py --list       # one line per datapoint: rank, legislature, date, id, minority share, title
+python usage_dataset2.py --list --legislature 16
 python usage_dataset2.py 40           # every field of one datapoint (by rank or id); --full for whole texts
 ```
 
@@ -152,7 +165,7 @@ python usage_dataset2.py 40           # every field of one datapoint (by rank or
 
 | Function | Returns |
 |---|---|
-| `load(path=DATASET_PATH)` | List of all datapoints (dicts), ordered by rank |
+| `load(path=DATASET_PATH, legislature=None)` | List of datapoints (dicts), ordered by rank; `legislature=17` keeps one legislature |
 | `get(key, dps)` | One datapoint, by rank (int, from 1) or id (str) |
 | `divisive(dps, min_minority_share=0.05)` | The divisive datapoints |
 | `group_positions(dp, min_voters=1, exclude=())` | `{group: position or None}` for one datapoint. `None` if fewer than `min_voters` voted; groups in `exclude` are dropped. |
@@ -170,7 +183,7 @@ python usage_dataset2.py 40           # every field of one datapoint (by rank or
 ```python
 import usage_dataset2 as ds
 
-dps = ds.divisive(ds.load())                                  # the 57 divisive datapoints
+dps = ds.divisive(ds.load(legislature=17))                    # the 57 divisive datapoints of the 17th legislature
 groups = ds.position_table(dps, min_voters=3, exclude=("NI",))
 
 def prompt(dp):                                               # one possible prompt; yours may differ
