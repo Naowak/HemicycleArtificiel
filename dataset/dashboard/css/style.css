@@ -193,3 +193,13 @@ details.block > div { margin-top: 10px; }
 .tooltip .tt-t { font-weight: 600; margin-bottom: 2px; }
 .tooltip .tt-r { display: flex; justify-content: space-between; gap: 14px; color: var(--ink-2); }
 .tooltip .tt-r b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------- onglet Analyse ---------- */
+.an-prompt { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; background: var(--soft); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 12px; color: var(--ink-2); }
+.an-logos { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px 16px; margin-top: 14px; font-size: 12.5px; }
+.an-logos span { display: inline-flex; align-items: center; gap: 10px; }
+.an-logos img { width: 36px; height: 36px; border-radius: 50%; box-shadow: 0 0 0 1px var(--line); flex: none; }
+.an-scroll { max-height: 420px; overflow: auto; }
+.an-scroll th { position: sticky; top: 0; background: #fff; }
+table.bars .r { text-align: right; }
+table.bars tr.an-top td { font-weight: 600; }

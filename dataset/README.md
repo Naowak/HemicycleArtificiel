@@ -44,7 +44,7 @@ Il faut seulement Python 3.8 ou plus récent. Le dashboard n'a aucune autre dép
 
 ## Le dashboard
 
-Trois onglets, et un sélecteur de législature en haut à droite. Chaque vue a sa propre adresse (par exemple `#/17/scrutins/VTANR5L17V2107`), que l'on peut mettre en favori ou partager.
+Cinq onglets, et un sélecteur de législature en haut à droite. Chaque vue a sa propre adresse (par exemple `#/17/scrutins/VTANR5L17V2107`), que l'on peut mettre en favori ou partager.
 
 ### Vue d'ensemble
 
@@ -81,6 +81,23 @@ Trois onglets, et un sélecteur de législature en haut à droite. Chaque vue a 
 | Mode « famille » : les votes contre la loi sur l'aide à mourir (2025) | Vote sur la loi asile-immigration (2018) |
 | --- | --- |
 | ![Hémicycle, mode famille](docs/scrutin-famille.png) | ![Hémicycle, XVe](docs/scrutin-xve.png) |
+
+### Analyse
+
+Ce que montre le benchmark des modèles de langage (`results/`) : 8 modèles votent 5 fois chacun sur 301 lois adoptées en première lecture.
+
+- **Parts de vote** : tous les modèles votent surtout « pour » (62 à 94 %).
+- **Penchant gauche-droite** : corrélation entre la position du modèle et l'indice gauche-droite de chaque loi clivante, avec intervalle à 95 %, pour les trois législatures.
+- **Carte** : modèles projetés sur l'ACP des votes des députés, à côté des groupes et d'un votant « toujours pour ».
+- **Accord avec chaque groupe**, modèle par modèle.
+- **Hémicycle des plus proches** : chaque modèle, avec son logo, relié au député qui vote le plus comme lui, et le tableau des 5 plus proches.
+- **Stabilité** : part des lois où un modèle répond 5 fois la même chose.
+
+La carte, l'accord avec les groupes et l'hémicycle suivent le sélecteur de législature. Les données viennent de `data/dashboard/analyse.json`, produit par `scripts/prepare_analyse.py` à partir d'un dossier `results/` (voir « Reconstruire les données »).
+
+| | |
+| --- | --- |
+| ![Hémicycle des plus proches](docs/analyse.png) | ![Carte et accord avec les groupes](docs/analyse-carte.png) |
 
 ## Les données
 
@@ -142,9 +159,12 @@ python3 scripts/parse_textes.py         # data/sources/textes -> data/dataset/te
 python3 scripts/build_dataset.py        # relancer pour relier les nouveaux textes
 pip install numpy
 python3 scripts/prepare_dashboard.py    # -> data/dashboard/ (~1 min)
+python3 scripts/prepare_analyse.py      # onglet Analyse : dernier run ../results/results-5-seed-bench-* -> data/dashboard/analyse.json
 ```
 
-Les scripts n'utilisent que la bibliothèque standard, sauf `prepare_dashboard.py` qui a besoin de numpy.
+Pour analyser un autre run du benchmark : `python3 scripts/prepare_analyse.py --run ../results/<dossier>`.
+
+Les scripts n'utilisent que la bibliothèque standard, sauf `prepare_dashboard.py` et `prepare_analyse.py` qui ont besoin de numpy.
 
 ### Sources (`data/sources/`)
 
@@ -193,11 +213,13 @@ hemicycle-data/
 │   ├── serve.py            serveur local, bibliothèque standard
 │   ├── index.html
 │   ├── css/  js/
+│   └── img/logos/          logos des modèles (onglet Analyse)
 ├── scripts/                construction des données
 │   ├── index_amendements.py, index_dossiers.py
 │   ├── build_dataset.py
 │   ├── fetch_textes.py, parse_textes.py
-│   └── prepare_dashboard.py
+│   ├── prepare_dashboard.py
+│   └── prepare_analyse.py  onglet Analyse, à partir de ../results/
 ├── docs/                   captures d'écran
 └── data/                   non versionné : à télécharger (voir Démarrage rapide)
 ```
