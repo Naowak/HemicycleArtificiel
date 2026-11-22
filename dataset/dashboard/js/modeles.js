@@ -154,9 +154,11 @@ const Modeles = {
         <p class="sub">Part des votes où la réponse du modèle est alignée sur la position du groupe (au moins ${this.MIN_VOTANTS} votants ; NI exclu).</p>
         <div id="llm-groupes"></div></div>
 
-      <div class="card"><h2>Qui s'intéresse à quoi</h2>
-        <p class="sub">Part des réponses « pour » par thème. Le nombre de réponses figure dans l'infobulle.</p>
-        <div id="llm-themes" class="chart" style="overflow-x:auto"></div></div>
+      <div class="card"><h2>Quel modèle colle à quel bord</h2>
+        <p class="sub">Sur les mêmes votes, la part de « pour » des familles politiques (votes des députés) et celle des modèles, thème par thème.
+          Le <b>bord le plus proche</b> d'un modèle est la famille avec laquelle il a le meilleur accord vote par vote
+          (1 = toujours la même position, 0 = toujours opposés ; familles d'au moins ${this.MIN_VOTANTS} votants).</p>
+        <div id="llm-themes"></div></div>
 
       <div class="card"><h2>Un vote, vu par chacun</h2>
         <p class="sub">Hémicycle officiel du vote (les députés qui ont voté) et réponses des modèles.</p>
@@ -172,7 +174,7 @@ const Modeles = {
     this.dessinerCarte(main);
     this.dessinerMatrice(main);
     this.dessinerGroupes(main);
-    this.dessinerThemes(main, d);
+    this.dessinerThemes(main);
     await this.dessinerVote(main, d);
     this.dessinerTable(main);
 
@@ -288,31 +290,183 @@ const Modeles = {
       </tbody></table></div>`);
   },
 
-  /* Thèmes × modèles : part des « pour ». */
-  dessinerThemes(main, d) {
-    const themes = [...new Set(this.bills.map((s) => s.theme).filter(Boolean))].sort();
-    if (!themes.length) return;
-    const cw = 92, ch = 26, gauche = 200, haut = 40;
-    const W = gauche + this.modeles.length * cw + 10, H = haut + themes.length * ch + 10;
-    const svg = main.select("#llm-themes").append("svg").attr("viewBox", `0 0 ${W} ${H}`);
-    const couleur = d3.scaleSequential(d3.interpolateYlGnBu).domain([0, 1]);
-    this.modeles.forEach((m, j) => svg.append("text").attr("x", gauche + j * cw + cw / 2).attr("y", haut - 12)
-      .attr("text-anchor", "middle").attr("font-size", 11).attr("fill", "#5b6370").text(this.shortName(m)));
-    themes.forEach((t, i) => {
-      svg.append("text").attr("x", gauche - 8).attr("y", haut + i * ch + ch / 2 + 4).attr("text-anchor", "end")
-        .attr("font-size", 11).attr("fill", "#1d2128").text(this.themeLabel(t));
-      this.modeles.forEach((m, j) => {
-        const v = this.bills.filter((s) => s.theme === t).flatMap((s) => this.reponses(s, m)).map((r) => this.valeur(r.label)).filter((z) => z !== null);
-        const share = v.length ? v.filter((z) => z === 1).length / v.length : null;
-        svg.append("rect").attr("x", gauche + j * cw + 1).attr("y", haut + i * ch + 1).attr("width", cw - 2).attr("height", ch - 2)
-          .attr("rx", 3).attr("fill", share === null ? "#f1f3f5" : couleur(share))
-          .on("mouseenter", (e) => showTip(tipRows([[esc(this.themeLabel(t)), esc(this.shortName(m))], ["Pour", share === null ? "—" : F.pct(share)], ["Réponses", v.length]]), e))
-          .on("mousemove", moveTip).on("mouseleave", hideTip);
-        if (share !== null) svg.append("text").attr("x", gauche + j * cw + cw / 2).attr("y", haut + i * ch + ch / 2 + 4)
-          .attr("text-anchor", "middle").attr("font-size", 10).attr("pointer-events", "none")
-          .attr("fill", share > 0.6 ? "#fff" : "#1d2128").text(Math.round(share * 100) + " %");
+  /* ---------- familles politiques (comparaison avec les modèles) ---------- */
+  /* Familles de l'hémicycle hors non-inscrits, de la gauche vers la droite. */
+  familles() { return App.meta.familles.filter((f) => f.code !== "non_inscrits").sort((a, b) => a.rang - b.rang); },
+  /* Décompte des votes des députés de chaque famille sur un vote (mis en cache, la donnée n'est pas modifiée). */
+  compteFamilles(s) {
+    this._cacheFamilles ||= new WeakMap();
+    let c = this._cacheFamilles.get(s);
+    if (!c) {
+      c = {};
+      s.votes.forEach((v) => {
+        if (!v.family || ![1, -1, 0].includes(v.vote)) return;
+        const n = (c[v.family] ||= { for: 0, against: 0, abstain: 0, voters: 0 });
+        n.voters++;
+        n[v.vote === 1 ? "for" : v.vote === -1 ? "against" : "abstain"]++;
       });
+      this._cacheFamilles.set(s, c);
+    }
+    return c;
+  },
+  /* Position d'une famille sur un vote, même définition que pour un groupe ; null sous MIN_VOTANTS votants. */
+  posFamille(s, f) {
+    const n = this.compteFamilles(s)[f];
+    return n && n.voters >= this.MIN_VOTANTS ? (n.for - n.against) / n.voters : null;
+  },
+  /* Part de « pour » d'une famille : « pour » parmi les votes exprimés de ses députés (comme pour_moyen de la Vue d'ensemble). */
+  pourFamille(liste, f) {
+    let pour = 0, n = 0;
+    liste.forEach((s) => { const c = this.compteFamilles(s)[f]; if (c) { pour += c.for; n += c.voters; } });
+    return { share: n ? pour / n : null, n };
+  },
+  /* Part de « pour » d'un modèle : « pour » parmi ses réponses valides. */
+  pourModele(liste, m) {
+    const v = liste.flatMap((s) => this.reponses(s, m)).map((r) => this.valeur(r.label)).filter((z) => z !== null);
+    return { share: v.length ? v.filter((z) => z === 1).length / v.length : null, n: v.length };
+  },
+  /* Accord vote par vote modèle ↔ famille, avec le nombre de votes comparés. */
+  accordFamille(liste, m, f) {
+    const pairs = liste.map((s) => [this.posModele(s, m), this.posFamille(s, f)]).filter(([x, y]) => x !== null && y !== null);
+    return pairs.length ? { v: 1 - d3.mean(pairs, ([x, y]) => Math.abs(x - y)) / 2, n: pairs.length } : null;
+  },
+  /* Texte lisible sur un fond de couleur donnée. */
+  encre(fond) { const c = d3.hsl(fond); return c.l > 0.62 ? "#1d2128" : "#fff"; },
+
+  /* Thèmes × (familles | modèles) : part de « pour », et bord le plus proche de chaque modèle. */
+  dessinerThemes(main) {
+    const box = main.select("#llm-themes");
+    const fams = this.familles();
+    const modeles = this.modeles.filter((m) => this.bills.some((s) => this.reponses(s, m).length));
+    const lignes = [
+      { label: "Tous les thèmes", votes: this.bills, total: true },
+      ...[...d3.group(this.bills.filter((s) => s.theme && s.theme !== "autre"), (s) => s.theme)]
+        .map(([code, votes]) => ({ label: this.themeLabel(code), votes }))
+        .sort((a, b) => b.votes.length - a.votes.length),
+    ];
+    if (lignes.length < 2) return;
+    lignes.forEach((l) => {
+      l.fam = Object.fromEntries(fams.map((f) => [f.code, this.pourFamille(l.votes, f.code)]));
+      l.mod = Object.fromEntries(modeles.map((m) => {
+        const accords = fams.map((f) => ({ f, ...this.accordFamille(l.votes, m, f.code) })).filter((a) => a.v != null).sort((a, b) => b.v - a.v);
+        const exaequo = accords.length > 1 && accords[0].v - accords[1].v < 1e-9;
+        return [m, { ...this.pourModele(l.votes, m), accords, exaequo, proche: accords.length && !exaequo ? accords[0] : null }];
+      }));
     });
+
+    const tools = box.append("div").style("display", "flex").style("justify-content", "space-between").style("align-items", "center")
+      .style("flex-wrap", "wrap").style("gap", "8px").style("margin-bottom", "8px");
+    const seg = tools.append("div").attr("class", "seg");
+    const legende = tools.append("div").attr("class", "legend").style("margin", 0);
+    const wrap = box.append("div").attr("class", "chart").style("overflow-x", "auto");
+    const resume = box.append("div");
+    const modes = [["pour", "Part de « pour »"], ["bord", "Bord le plus proche"]];
+    let mode = "pour";
+    seg.selectAll("button").data(modes).join("button").text((d) => d[1]).on("click", (e, d) => { mode = d[0]; draw(); });
+
+    // échelle sur 0–100 % : sur ces votes, la part de « pour » est souvent élevée (l'échelle 0–60 % de la Vue d'ensemble saturerait)
+    const colPour = d3.scaleLinear([0, 1], ["#f2f5fa", "#1f4e99"]).clamp(true);
+    const encrePour = (v) => (v > 0.62 ? "#fff" : "#1d2128");
+    const tipModele = (l, m) => {
+      const c = l.mod[m];
+      const rows = [["Part de « pour »", c.share == null ? "—" : `${F.pct(c.share)} <span class="muted">(${c.n} rép.)</span>`]];
+      c.accords.forEach((a, k) => rows.push([`${k === 0 ? "▸ " : ""}Accord ${esc(a.f.label)}`, `${F.pct(a.v)} <span class="muted">(${a.n} votes)</span>`]));
+      const bilan = c.proche ? `Plus proche : <b>${esc(c.proche.f.label)}</b>` : c.exaequo ? "Plusieurs familles ex æquo" : "Pas assez de votes";
+      return `<div class="tt-t">${esc(l.label)} · ${esc(this.shortName(m))}</div>${tipRows(rows)}<div class="small" style="margin-top:4px">${bilan}</div>`;
+    };
+
+    const draw = () => {
+      seg.selectAll("button").classed("active", (d) => d[0] === mode);
+      wrap.html("");
+      legende.html(mode === "pour"
+        ? `<span><span class="sw" style="background:#f2f5fa;border:1px solid #e7e9ed"></span>peu de « pour »</span><span><span class="sw" style="background:#1f4e99"></span>beaucoup de « pour »</span><span><span class="sw dot" style="background:#5b6370"></span>bord le plus proche</span>`
+        : fams.map((f) => `<span><span class="sw" style="background:${f.couleur}"></span>${esc(f.label)}</span>`).join(""));
+      const rowH = 24, L = 190, barW = 90, gap = 46, cwF = 74, sep = 26, cwM = 80, T = 62;
+      const xF = (j) => L + barW + gap + j * cwF, xM = (j) => L + barW + gap + fams.length * cwF + sep + j * cwM;
+      const W = xM(modeles.length) + 4, H = T + lignes.length * rowH + 10;
+      const svg = wrap.append("svg").attr("viewBox", `0 0 ${W} ${H}`).style("min-width", "880px");
+      // en-têtes de blocs
+      [[xF(0), xF(fams.length), "Familles politiques (députés)"], [xM(0), xM(modeles.length), "Modèles"]].forEach(([a, b, t]) => {
+        svg.append("text").attr("x", (a + b) / 2).attr("y", 10).attr("text-anchor", "middle").attr("font-size", 11).attr("font-weight", 600).attr("fill", "#1d2128").text(t);
+        svg.append("line").attr("x1", a + 2).attr("x2", b - 2).attr("y1", 16).attr("y2", 16).attr("stroke", "#d3d7dd");
+      });
+      fams.forEach((f, j) => {
+        const x0 = xF(j) + cwF / 2;
+        svg.append("circle").attr("cx", x0).attr("cy", 28).attr("r", 4.5).attr("fill", f.couleur);
+        const t = svg.append("text").attr("x", x0).attr("y", 44).attr("text-anchor", "middle").attr("font-size", 10.5).attr("fill", "#5b6370");
+        const mots = f.label.replace(" (LIOT)", "").split(" ");
+        (mots.length > 1 ? [mots[0], mots.slice(1).join(" ")] : mots).forEach((w, k) => t.append("tspan").attr("x", x0).attr("dy", k ? 12 : 0).text(w));
+      });
+      modeles.forEach((m, j) => {
+        const x0 = xM(j) + cwM / 2, nom = this.shortName(m), i = nom.indexOf("-");
+        const t = svg.append("text").attr("x", x0).attr("y", 36).attr("text-anchor", "middle").attr("font-size", 10.5).attr("fill", "#1d2128");
+        (i > 0 ? [nom.slice(0, i), nom.slice(i + 1)] : [nom]).forEach((w, k) => t.append("tspan").attr("x", x0).attr("dy", k ? 12 : 0).text(w));
+      });
+
+      const xb = d3.scaleLinear([0, d3.max(lignes.filter((l) => !l.total), (l) => l.votes.length)], [0, barW]);
+      const rows = svg.append("g").selectAll("g").data(lignes).join("g").attr("transform", (l, i) => `translate(0,${T + i * rowH + (l.total ? 0 : 6)})`);
+      svg.append("line").attr("x1", 8).attr("x2", W - 4).attr("y1", T + rowH + 3).attr("y2", T + rowH + 3).attr("stroke", "#e3e6ea");
+      rows.append("text").attr("x", L - 10).attr("y", rowH / 2 + 4).attr("text-anchor", "end").attr("font-size", 12)
+        .attr("font-weight", (l) => (l.total ? 600 : 400)).attr("fill", "#1d2128").text((l) => l.label);
+      rows.filter((l) => !l.total).append("rect").attr("x", L).attr("y", 6).attr("height", rowH - 12).attr("rx", 3)
+        .attr("width", (l) => Math.max(2, xb(l.votes.length))).attr("fill", "#9aa3ae");
+      rows.append("text").attr("x", (l) => (l.total ? L : L + xb(l.votes.length) + 5)).attr("y", rowH / 2 + 4).attr("font-size", 10.5).attr("fill", "#5b6370")
+        .text((l) => (l.total ? `${F.int(l.votes.length)} votes` : F.int(l.votes.length)));
+
+      // familles : part de « pour »
+      fams.forEach((f, j) => {
+        const x0 = xF(j);
+        rows.append("rect").attr("x", x0 + 2).attr("y", 2).attr("width", cwF - 4).attr("height", rowH - 4).attr("rx", 3)
+          .attr("fill", (l) => (l.fam[f.code].share == null ? "#fafafa" : colPour(l.fam[f.code].share)))
+          .on("mouseenter", (e, l) => showTip(`<div class="tt-t">${esc(l.label)} · ${esc(f.label)}</div>${tipRows([
+            ["Part de « pour »", l.fam[f.code].share == null ? "—" : F.pct(l.fam[f.code].share)],
+            ["Votes exprimés", F.int(l.fam[f.code].n)]])}`, e)).on("mousemove", moveTip).on("mouseleave", hideTip);
+        rows.append("text").attr("x", x0 + cwF / 2).attr("y", rowH / 2 + 4).attr("text-anchor", "middle").attr("font-size", 10.5).attr("pointer-events", "none")
+          .attr("fill", (l) => encrePour(l.fam[f.code].share))
+          .text((l) => (l.fam[f.code].share == null ? "" : Math.round(l.fam[f.code].share * 100) + " %"));
+      });
+
+      // modèles : part de « pour » (+ pastille du bord) ou bord le plus proche
+      modeles.forEach((m, j) => {
+        const x0 = xM(j);
+        const fond = (l) => {
+          const c = l.mod[m];
+          if (mode === "pour") return c.share == null ? "#fafafa" : colPour(c.share);
+          return c.proche ? c.proche.f.couleur : "#f1f3f5";
+        };
+        rows.append("rect").attr("x", x0 + 2).attr("y", 2).attr("width", cwM - 4).attr("height", rowH - 4).attr("rx", 3)
+          .attr("fill", fond).attr("opacity", (l) => (mode === "bord" && !l.total && l.votes.length < this.MIN_VOTANTS ? 0.5 : 1))
+          .on("mouseenter", (e, l) => showTip(tipModele(l, m), e)).on("mousemove", moveTip).on("mouseleave", hideTip);
+        rows.append("text").attr("x", x0 + cwM / 2 - (mode === "pour" ? 4 : 0)).attr("y", rowH / 2 + 4).attr("text-anchor", "middle")
+          .attr("font-size", 10.5).attr("pointer-events", "none")
+          .attr("font-weight", (l) => (l.total ? 600 : 400))
+          .attr("fill", (l) => {
+            const c = l.mod[m];
+            if (mode === "pour") return encrePour(c.share);
+            return c.proche ? this.encre(c.proche.f.couleur) : "#8b929c";
+          })
+          .text((l) => {
+            const c = l.mod[m];
+            if (mode === "pour") return c.share == null ? "" : Math.round(c.share * 100) + " %";
+            return c.proche ? Math.round(c.proche.v * 100) + " %" : c.exaequo ? "ex æquo" : "";
+          });
+        if (mode === "pour") rows.filter((l) => l.mod[m].proche).append("circle").attr("pointer-events", "none")
+          .attr("cx", x0 + cwM - 10).attr("cy", rowH / 2).attr("r", 4.5).attr("stroke", "#fff").attr("stroke-width", 1.5)
+          .attr("fill", (l) => l.mod[m].proche.f.couleur);
+      });
+    };
+    draw();
+
+    // résumé : chaque modèle et ses deux familles les plus proches, tous thèmes confondus
+    const tout = lignes[0];
+    resume.html(`<h3 style="font-size:13px;margin:16px 0 6px">En résumé, tous thèmes confondus</h3><table class="bars"><tbody>${modeles.map((m) => {
+      const a = tout.mod[m].accords;
+      if (!a.length) return `<tr><td><b>${esc(this.shortName(m))}</b></td><td class="muted" colspan="2">pas de réponse</td></tr>`;
+      const puce = (x) => `<span class="sw dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${x.f.couleur};margin-right:5px"></span>${esc(x.f.label)} <span class="muted">${F.pct(x.v)}</span>`;
+      return `<tr><td><b>${esc(this.shortName(m))}</b></td><td>colle surtout à ${puce(a[0])}</td><td class="small">${a[1] ? "puis " + puce(a[1]) : ""}</td>
+        <td class="small muted">le plus loin : ${esc(a[a.length - 1].f.label)} ${F.pct(a[a.length - 1].v)}</td></tr>`;
+    }).join("")}</tbody></table>
+    <p class="note">Les thèmes qui comptent peu de votes (barre grise courte) donnent un bord le plus proche très fragile : un ou deux votes suffisent à le faire basculer.</p>`);
   },
   themeLabel(code) { return App.theme(code); },
 
