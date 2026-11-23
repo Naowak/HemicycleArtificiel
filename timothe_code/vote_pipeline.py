@@ -40,11 +40,15 @@ logger = logging.getLogger(__name__)
 
 RESULTS_ROOT = os.path.join(ROOT, "results")
 RUN_PREFIX = "results-"
+RUN_STAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}")
 ENV_FILE = os.path.join(ROOT, ".env")
 
 
 def api_key():
-    """OPENROUTER_API_KEY from the .env file at the repository root, else from the environment."""
+    """The OpenRouter key: the environment variable API_KEY_ENV when it is set, else OPENROUTER_API_KEY from
+    the .env file at the repository root, else from the environment."""
+    if os.environ.get(API_KEY_ENV):
+        return os.environ[API_KEY_ENV]
     if os.path.exists(ENV_FILE):
         for line in open(ENV_FILE, encoding="utf-8"):
             line = line.strip()
@@ -57,6 +61,8 @@ CONFIG_FILE, PROMPTS_LOG, RAW_FILE, REPORT_FILE, LOG_FILE = "config.json", "prom
 PROMPTS_FILE = os.path.join(HERE, "prompts.json")
 # Optional per-bill placeholders (e.g. generated arguments): {bill id: {field: text}}.
 EXTRA_FIELDS_FILE = os.path.join(HERE, "extra_fields.json")
+# Same, for texts that must stay out of git (press articles).
+LOCAL_EXTRA_FIELDS_FILE = os.path.join(HERE, "extra_fields_local.json")
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 API_KEY_ENV = "OPENROUTER_API_KEY_2"  # the team's key
 
@@ -142,10 +148,12 @@ _extra_fields = None
 def extra_fields():
     global _extra_fields
     if _extra_fields is None:
-        _extra_fields = {}
-        if os.path.exists(EXTRA_FIELDS_FILE):
-            with open(EXTRA_FIELDS_FILE, encoding="utf-8") as f:
-                _extra_fields = json.load(f)
+        _extra_fields = collections.defaultdict(dict)
+        for path in (EXTRA_FIELDS_FILE, LOCAL_EXTRA_FIELDS_FILE):
+            if os.path.exists(path):
+                with open(path, encoding="utf-8") as f:
+                    for bill_id, fields in json.load(f).items():
+                        _extra_fields[bill_id].update(fields)
     return _extra_fields
 
 
@@ -237,12 +245,19 @@ def read_jsonl(path):
         return [json.loads(line) for line in f]
 
 
+def run_date(name):
+    """The date in a run folder name, or the name itself when it has none."""
+    match = RUN_STAMP_RE.search(name)
+    return match.group(0) if match else name
+
+
 def list_runs(results_root=RESULTS_ROOT):
-    """Run folder names, oldest first (names sort by date)."""
+    """Run folder names, oldest first (by the date in the name, so a label may sit before it)."""
     if not os.path.isdir(results_root):
         return []
-    return sorted(d for d in os.listdir(results_root)
-                  if d.startswith(RUN_PREFIX) and os.path.isdir(os.path.join(results_root, d)))
+    runs = [d for d in os.listdir(results_root)
+            if d.startswith(RUN_PREFIX) and os.path.isdir(os.path.join(results_root, d))]
+    return sorted(runs, key=lambda d: (run_date(d), d))
 
 
 def new_run_dir(suffix="", results_root=RESULTS_ROOT, now=None):
@@ -270,8 +285,9 @@ def earlier_answers(current_dir, results_root=RESULTS_ROOT):
 
 
 def require_key():
-    if not os.environ.get(API_KEY_ENV):
-        sys.exit("environment variable %s is not set (choose another with --key-env)" % API_KEY_ENV)
+    if not api_key():
+        sys.exit("no OpenRouter key: set the environment variable %s (or another one with --key-env), "
+                 "or OPENROUTER_API_KEY in %s" % (API_KEY_ENV, ENV_FILE))
 
 
 def run(run_dir, datapoints, models, variants, n_samples, reuse=True, note=None):

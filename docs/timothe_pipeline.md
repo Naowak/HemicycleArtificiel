@@ -57,7 +57,7 @@ Everything is in `timothe_code/prompts.json`. Each entry under `variants` is one
 
 `preview` prints the full list.
 
-Texts generated per bill (for example the arguments of the steering experiments) can be added as placeholders through `timothe_code/extra_fields.json`, of the form `{bill id: {field: text}}`. A bill that lacks a field used by a variant is skipped for that variant.
+Texts generated per bill (for example the arguments of the steering experiments) can be added as placeholders through `timothe_code/extra_fields.json`, of the form `{bill id: {field: text}}`. A bill that lacks a field used by a variant is skipped for that variant. Texts that must stay out of git, such as press articles, go in `timothe_code/extra_fields_local.json`, in the same form.
 
 **Keep "VOTE : POUR / CONTRE / ABSTENTION" in the question.** That is how answers are read; anything else counts as a refusal.
 

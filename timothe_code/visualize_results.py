@@ -278,14 +278,16 @@ function mapSvg(a){
   // Paths: a dose series (baseline, x_0.25, x_0.50...) is drawn as one line in order; otherwise arrows go
   // from the reference variant to each other variant of the same model.
   const ref = order.includes("prompt_v1") ? "prompt_v1" : order.includes("baseline") ? "baseline" : order[0];
-  const chain = order.every(v => v === "baseline" || /_\d+\.\d+$/.test(v));
+  const isDose = v => /_\d+(\.\d+)?$/.test(v);
+  const chain = order.some(isDose) && order.every(v => v === ref || v === "baseline" || isDose(v));
   const XY = md => [sx(m.actors[md][0]), sy(m.actors[md][1])];
   if (multi){
     s += "<defs>" + bases.map((b, i) => `<marker id="arr${i}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="${mcol(b)}"/></marker>`).join("") + "</defs>";
     bases.forEach((b, i) => {
       const mine = a.models.filter(md => modelOf(md) === b).sort((p, q) => order.indexOf(variantOf(p)) - order.indexOf(variantOf(q)));
       if (chain){
-        if (mine.length > 1) s += `<polyline points="${mine.map(md => XY(md).map(v => v.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${mcol(b)}" stroke-width=1.5 opacity=0.6 marker-end="url(#arr${i})"/>`;
+        const path = mine.filter(md => isDose(variantOf(md)) || variantOf(md) === "baseline");
+        if (path.length > 1) s += `<polyline points="${path.map(md => XY(md).map(v => v.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${mcol(b)}" stroke-width=1.5 opacity=0.6 marker-end="url(#arr${i})"/>`;
       } else {
         const origin = b + " | " + ref;
         if (m.actors[origin]) for (const md of mine){ if (md === origin) continue;
@@ -295,7 +297,7 @@ function mapSvg(a){
     });
   }
   for (const md of a.models){ const [X, Y] = XY(md), isRef = multi && variantOf(md) === ref, r = isRef ? 7 : 5;
-    const label = !multi ? shortModel(md) : isRef ? shortModel(modelOf(md)) : variantOf(md);
+    const label = !multi ? shortModel(md) : isRef ? shortModel(modelOf(md)) : (variantOf(md).match(/_level_(\d+)$/) || [0, variantOf(md)])[1];
     s += `<polygon points="${X},${Y - r} ${X + r},${Y} ${X},${Y + r} ${X - r},${Y}" fill="${mcol(md)}" ${isRef ? 'stroke="#000" stroke-width=1.5' : ""}><title>${esc(md)}</title></polygon><text x=${X + 8} y=${Y - 5} font-size=${multi && !isRef ? 9 : 11} ${isRef ? "font-weight=bold" : ""} fill="${mcol(md)}">${esc(label)}</text>`; }
   const byAxis = k => a.groups.filter(g => m.actors[g]).sort((p, q) => m.actors[p][k] - m.actors[q][k]);
   const ends = (k, n) => { const o = byAxis(k); return [o.slice(0, n).join(", "), o.slice(-n).reverse().join(", ")]; };

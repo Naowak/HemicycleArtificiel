@@ -226,3 +226,7 @@ __marimo__/
 datasets/
 dataset_2/
 results/
+
+# Press article texts (copyright): rebuilt by timothe_code/steering_articles.py
+timothe_code/steering_articles_text.json
+timothe_code/extra_fields_local.json

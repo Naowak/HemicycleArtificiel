@@ -1,0 +1,464 @@
+{
+ "VTANR5L17V881": [
+  {
+   "side": "left",
+   "outlet": "Politis",
+   "url": "https://www.politis.fr/articles/2025/02/taxer-les-riches-les-ecologistes-gagnent-une-bataille-contre-le-gouvernement/",
+   "date": "2025-02-21",
+   "title": "Taxer les riches : Les Écologistes gagnent une bataille contre le gouvernement",
+   "stance": "for"
+  },
+  {
+   "side": "left",
+   "outlet": "Reporterre",
+   "url": "https://reporterre.net/Comment-les-ecologistes-entendent-taxer-les-plus-riches",
+   "date": "2025-02-19",
+   "title": "Taxer les riches pour réduire le déficit : le projet écologiste en débat",
+   "stance": "for"
+  },
+  {
+   "side": "left",
+   "outlet": "Basta!",
+   "url": "https://basta.media/imposition-ultrariches-au-secours-les-riches-vont-partir-Attac-budget",
+   "date": "2025-09-18",
+   "title": "Imposition des ultrariches : au secours, les riches vont partir !",
+   "stance": "for"
+  },
+  {
+   "side": "left",
+   "outlet": "L'Insoumission",
+   "url": "https://linsoumission.fr/2025/09/29/taxe-zucman-panique-ultra-riches/",
+   "date": "2025-09-29",
+   "title": "Taxe Zucman : retour sur la panique des ultra-riches et la levée de boucliers de leurs affidés",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Valeurs actuelles",
+   "url": "https://www.valeursactuelles.com/clubvaleurs/economie/olivier-babeau-taxe-zucman-et-redistribution",
+   "date": "2025-06-26",
+   "title": "Olivier Babeau : \"Taxe Zucman\" et redistribution",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "Causeur",
+   "url": "https://www.causeur.fr/une-catastrophe-nommee-zucman-316781",
+   "date": "2025-10-01",
+   "title": "Une catastrophe nommée Zucman",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/lentrepreneur-denis-payre-decoupe-la-taxe-zucman-jai-honte-pour-mon-pays/",
+   "date": "2025-09-16",
+   "title": "L'entrepreneur Denis Payre découpe la taxe Zucman : « J'ai honte pour mon pays ! »",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "Valeurs actuelles",
+   "url": "https://www.valeursactuelles.com/clubvaleurs/economie/frederic-douet-la-taxe-zucman-symptomatique-dun-mal-francais",
+   "date": "2025-07-09",
+   "title": "La “taxe Zucman”, symptomatique d'un mal français",
+   "stance": "against"
+  }
+ ],
+ "VTANR5L17V4745": [
+  {
+   "side": "left",
+   "outlet": "Mediapart",
+   "url": "https://www.mediapart.fr/journal/france/121225/encadrement-des-loyers-la-loi-adoptee-en-premiere-lecture",
+   "date": "2025-12-12",
+   "title": "Encadrement des loyers : la loi adoptée en première lecture",
+   "stance": "for"
+  },
+  {
+   "side": "left",
+   "outlet": "L'Insoumission",
+   "url": "https://linsoumission.fr/2025/12/01/baisse-loyers-tribune-lfi/",
+   "date": "2025-12-01",
+   "title": "« Les loyers doivent baisser ! » - Tribune de candidats LFI aux municipales, déterminés à lutter contre la cherté des logements",
+   "stance": "for"
+  },
+  {
+   "side": "left",
+   "outlet": "Mediapart",
+   "url": "https://www.mediapart.fr/journal/france/240925/encadrement-des-loyers-un-outil-robuste-et-vertueux-encore-trop-contourne",
+   "date": "2025-09-24",
+   "title": "Encadrement des loyers : un outil « robuste et vertueux », encore trop contourné",
+   "stance": "for"
+  },
+  {
+   "side": "left",
+   "outlet": "L'Humanité",
+   "url": "https://www.humanite.fr/societe/droit-au-logement/le-rn-voulait-lenterrer-la-gauche-la-sauve-lencadrement-des-loyers-est-prolonge-pour-deux-ans",
+   "date": "2026-11-20",
+   "title": "Le RN voulait l’enterrer, la gauche l’a sauvé : l’encadrement des loyers est prolongé pour deux ans - L'Humanité",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Valeurs actuelles",
+   "url": "https://www.valeursactuelles.com/clubvaleurs/economie/olivier-babeau-lencadrement-des-loyers-aggrave-la-crise",
+   "date": "2026-02-26",
+   "title": "Olivier Babeau : L'encadrement des loyers aggrave la crise",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "Valeurs actuelles",
+   "url": "https://www.valeursactuelles.com/politique/gel-des-loyers-sur-deux-ans-encadrement-des-loyers-sur-tout-le-territoire-la-nouvelle-folie-fiscale-des-lfi",
+   "date": "2025-10-29",
+   "title": "La nouvelle folie fiscale des LFI sur l'encadrement des loyers",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "L'Incorrect",
+   "url": "https://lincorrect.org/macron-ou-le-crepuscule-des-proprietaires/",
+   "date": "2026-05-28",
+   "title": "Macron ou le crépuscule des propriétaires",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/resoudre-la-crise-du-logement-en-ruinant-les-proprietaires/",
+   "date": "2025-01-06",
+   "title": "Résoudre la crise du logement... en ruinant les propriétaires !",
+   "stance": "against"
+  }
+ ],
+ "VTANR5L17V738": [
+  {
+   "side": "left",
+   "outlet": "L'Insoumission",
+   "url": "https://linsoumission.fr/2025/02/06/%f0%9f%94%b4-mayotte-une-nouvelle-attaque-contre-le-droit-du-sol/",
+   "date": "2025-02-06",
+   "title": "Mayotte : une nouvelle attaque contre le droit du sol",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Mediapart",
+   "url": "https://www.mediapart.fr/journal/france/070225/la-droite-et-l-extreme-droite-restreignent-considerablement-le-droit-du-sol-mayotte",
+   "date": "2025-02-07",
+   "title": "La droite et l’extrême droite restreignent considérablement le droit du sol à Mayotte",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Révolution permanente",
+   "url": "https://www.revolutionpermanente.fr/Durcissement-du-droit-du-sol-LR-macronistes-et-RN-alignes-dans-l-offensive-raciste-a-Mayotte",
+   "date": "2025-02-07",
+   "title": "Durcissement du « droit du sol » : LR, macronistes et RN, alignés dans l'offensive raciste à Mayotte",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Mediapart",
+   "url": "https://www.mediapart.fr/journal/france/210425/qu-est-ce-que-j-ai-fait-pour-meriter-ca-le-cauchemar-des-exclus-du-droit-du-sol-mayotte",
+   "date": "2025-04-21",
+   "title": "« Qu’est-ce que j’ai fait pour mériter ça ? » : le cauchemar des exclus du droit du sol à Mayotte",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "Valeurs actuelles",
+   "url": "https://www.valeursactuelles.com/clubvaleurs/politique/mayotte-le-droit-du-sol-nest-pas-immuable-rappelle-le-depute-lr-philippe-gosselin",
+   "date": "2025-02-17",
+   "title": "Mayotte : \"Le droit du sol n’est pas immuable\", rappelle Philippe Gosselin",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Causeur",
+   "url": "https://www.causeur.fr/destexhe-il-faut-en-finir-avec-l-angelisme-migratoire-a-mayotte-301685",
+   "date": "2025-02-07",
+   "title": "« Il faut en finir avec l'angélisme migratoire à Mayotte »",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/mayotte-premiere-encoche-dans-le-droit-du-sol-lfi-setrangle/",
+   "date": "2025-02-07",
+   "title": "Mayotte : première encoche dans le droit du sol. LFI s'étrangle !",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Causeur",
+   "url": "https://www.causeur.fr/mayotte-droit-du-sol-enfin-276136",
+   "date": "2024-02-12",
+   "title": "Droit du sol, enfin!",
+   "stance": "for"
+  }
+ ],
+ "VTANR5L17V805": [
+  {
+   "side": "left",
+   "outlet": "Politis",
+   "url": "https://www.politis.fr/articles/2025/02/parti-pris-coup-de-massue-sur-la-justice-des-mineurs/",
+   "date": "2025-02-12",
+   "title": "Coup de massue sur la justice des mineurs",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Mediapart",
+   "url": "https://www.mediapart.fr/journal/france/100225/justice-des-mineurs-le-projet-de-gabriel-attal-oublie-les-grands-principes-et-ignore-les-besoins",
+   "date": "2025-02-10",
+   "title": "Justice des mineurs : le projet de Gabriel Attal oublie les grands principes et ignore les besoins",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Révolution permanente",
+   "url": "https://www.revolutionpermanente.fr/Loi-Attal-sur-la-justice-des-mineurs-une-offensive-autoritaire-et-repressive-contre-les-jeunes-et",
+   "date": "2025-02-14",
+   "title": "Loi Attal sur la justice des mineurs : une offensive autoritaire et répressive contre les jeunes et leurs parents",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Mediapart",
+   "url": "https://www.mediapart.fr/journal/france/130225/justice-des-mineurs-le-train-de-la-surenchere-lance-l-assemblee-nationale",
+   "date": "2025-02-13",
+   "title": "Justice des mineurs : le train de la surenchère lancé à l’Assemblée nationale",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "Causeur",
+   "url": "https://www.causeur.fr/justice-mineurs-et-pourtant-gabriel-attal-avait-raison-312376",
+   "date": "2025-06-24",
+   "title": "Et pourtant Gabriel Attal avait raison !",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Valeurs actuelles",
+   "url": "https://www.valeursactuelles.com/societe/delinquance-des-mineurs-durcissement-de-la-justice-implication-des-parents-gabriel-attal-reclame-des-mesures-fortes",
+   "date": "2025-02-02",
+   "title": "Gabriel Attal réclame des mesures fortes autour de la justice des mineurs",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Valeurs actuelles",
+   "url": "https://www.valeursactuelles.com/politique/le-texte-de-gabriel-attal-visant-a-durcir-la-justice-des-mineurs-adopte-a-lassemblee-nationale",
+   "date": "2025-02-13",
+   "title": "Le texte visant à durcir la justice des mineurs adopté à l'Assemblée",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/la-mere-du-jeune-elias-assassine-pointe-une-justice-des-mineurs-defaillante/",
+   "date": "2025-11-24",
+   "title": "La mère du jeune Elias assassiné pointe une Justice des mineurs défaillante",
+   "stance": "for"
+  }
+ ],
+ "VTANR5L17V6318": [
+  {
+   "side": "left",
+   "outlet": "Révolution permanente",
+   "url": "https://www.revolutionpermanente.fr/Offensive-securitaire-l-Assemblee-valide-l-allongement-de-duree-de-retention-en-CRA-a-210-jours",
+   "date": "2026-05-08",
+   "title": "Offensive raciste : l'Assemblée valide l'allongement de durée de rétention en CRA à 210 jours",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Politis",
+   "url": "https://www.politis.fr/articles/2026/04/loi-rodwell-les-droits-des-trans-dans-le-viseur/",
+   "date": "2026-04-10",
+   "title": "Loi Rodwell : les droits des trans dans le viseur",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Révolution permanente",
+   "url": "https://www.revolutionpermanente.fr/210-jours-de-retention-en-CRA-la-macronie-remet-sur-la-table-sa-proposition-de-loi-raciste",
+   "date": "2026-02-12",
+   "title": "210 jours de rétention en CRA : la macronie remet sur la table sa proposition de loi raciste",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Mediapart",
+   "url": "https://www.mediapart.fr/journal/france/201025/marseille-une-des-victimes-de-la-rue-d-aubagne-croupit-en-centre-de-retention",
+   "date": "2025-10-20",
+   "title": "À Marseille, une des victimes de la rue d’Aubagne croupit en centre de rétention",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "CNews",
+   "url": "https://www.cnews.fr/france/2026-04-12/oqtf-aujourdhui-les-delais-de-retention-sont-beaucoup-trop-courts-affirme-le",
+   "date": "2026-04-12",
+   "title": "OQTF : «Aujourd'hui, les délais de rétention sont beaucoup trop courts», affirme le député Charles Rodwell",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Valeurs actuelles",
+   "url": "https://www.valeursactuelles.com/societe/oqtf-dangereux-82-des-francais-sont-pour-un-allongement-des-placements-en-centre-de-retention-administrative-selon-un-sondage",
+   "date": "2026-04-19",
+   "title": "82% des Français sont pour allonger la rétention des OQTF dangereux",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/allonger-le-delai-de-retention-en-cra-charles-rodwell-revient-a-la-charge/",
+   "date": "2025-12-29",
+   "title": "Allonger le délai de rétention en CRA : Charles Rodwell revient à la charge",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/centre-de-retention-pour-etrangers-le-sejour-passe-de-90-a-210-jours/",
+   "date": "2025-07-10",
+   "title": "Centre de rétention pour étrangers : le séjour passe de 90 à 210 jours",
+   "stance": "for"
+  }
+ ],
+ "VTANR5L17V6124": [
+  {
+   "side": "left",
+   "outlet": "Mediapart",
+   "url": "https://www.mediapart.fr/journal/france/100426/les-deputes-sonnent-la-charge-contre-les-free-parties",
+   "date": "2026-04-10",
+   "title": "Les députés sonnent la charge contre les free parties",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "L'Insoumission",
+   "url": "https://linsoumission.fr/2026/06/03/repression-des-raves-parties-macronie/",
+   "date": "2026-06-03",
+   "title": "Répression des rave-parties : non, en macronie, vous ne ferez pas la fête",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Basta!",
+   "url": "https://basta.media/Free-Party-deux-projets-de-loi-30-000-euros-amende-peines-de-prison-pour-rassemblements-festifs-mobilisation",
+   "date": "2026-05-29",
+   "title": "Ciblé par deux textes de lois, des peines de prison et des amendes prohibitives, le mouvement des free parties se mobilise",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Révolution permanente",
+   "url": "https://www.revolutionpermanente.fr/Loi-RIPOST-une-nouvelle-offensive-securitaire-contre-les-free-party",
+   "date": "2026-04-16",
+   "title": "Loi RIPOST : une nouvelle offensive sécuritaire contre les free party",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "Valeurs actuelles",
+   "url": "https://www.valeursactuelles.com/societe/stephane-rambaud-le-fleau-des-rave-party",
+   "date": "2026-05-06",
+   "title": "Stéphane Rambaud : Le fléau des rave-party",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/fin-de-la-rave-party-dans-le-cher-la-gauche-antifa-samuse-les-francais-paient/",
+   "date": "2026-05-05",
+   "title": "Fin de la rave-party dans le Cher : la gauche antifa s’amuse, les Français paient",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/morbihan-une-rave-party-evacuee-apres-des-affrontements-avec-les-gendarmes/",
+   "date": "2026-05-24",
+   "title": "Morbihan : une rave-party évacuée après des affrontements avec les gendarmes",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Valeurs actuelles",
+   "url": "https://www.valeursactuelles.com/politique/rodeos-free-parties-squats-ce-que-contient-la-loi-ripost-adoptee-et-qui-fait-hurler-la-gauche",
+   "date": "2026-07-22",
+   "title": "Rodéos, free parties, squats... Ce que contient la loi RIPOST",
+   "stance": "for"
+  }
+ ],
+ "VTANR5L17V7987": [
+  {
+   "side": "left",
+   "outlet": "Mediapart",
+   "url": "https://www.mediapart.fr/journal/france/060726/presomption-de-legitime-defense-pour-les-policiers-et-gendarmes-la-societe-civile-tente-d-alerter",
+   "date": "2026-07-06",
+   "title": "« Présomption de légitime défense » pour les policiers et gendarmes : la société civile tente d’alerter",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Révolution permanente",
+   "url": "https://www.revolutionpermanente.fr/Presomption-de-legitime-defense-pour-la-police-le-nouveau-permis-de-tuer-de-retour-a-l-Assemblee",
+   "date": "2026-07-02",
+   "title": "Présomption de légitime défense pour la police : le nouveau permis de tuer de retour à l'Assemblée",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "Politis",
+   "url": "https://www.politis.fr/articles/2026/07/permis-de-tuer-comment-la-presomption-de-legitime-defense-fabrique-limpunite-des-policiers/",
+   "date": "2026-07-06",
+   "title": "Permis de tuer : comment la présomption de légitime défense fabrique l'impunité des policiers",
+   "stance": "against"
+  },
+  {
+   "side": "left",
+   "outlet": "L'Humanité",
+   "url": "https://www.humanite.fr/en-debat/legitime-defense/le-senat-doit-rejeter-la-loi-qui-etablit-une-presomption-de-legitime-defense-pour-la-police",
+   "date": "2026-11-18",
+   "title": "Le sénat doit rejeter la loi qui établit une présomption de légalité des tirs pour la police - L'Humanité",
+   "stance": "against"
+  },
+  {
+   "side": "right",
+   "outlet": "Causeur",
+   "url": "https://www.causeur.fr/tenue-en-respect-presomption-de-legitime-defense-police-330682",
+   "date": "2026-07-18",
+   "title": "Tenue en respect",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/quand-on-fait-usage-de-notre-arme-cest-quon-na-pas-le-choix-la-realite-derriere-les-tirs-policiers/",
+   "date": "2026-07-18",
+   "title": "« Quand on fait usage de notre arme, c’est qu’on n’a pas le choix » : la réalité derrière les tirs policiers",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/19-en-un-an-les-violences-contre-les-policiers-en-explosion/",
+   "date": "2026-05-08",
+   "title": "+19 % en un an : les violences contre les policiers en explosion",
+   "stance": "for"
+  },
+  {
+   "side": "right",
+   "outlet": "Boulevard Voltaire",
+   "url": "https://www.bvoltaire.fr/tribune-sept-policiers-agresses-il-est-urgent-dagir/",
+   "date": "2025-09-16",
+   "title": "[TRIBUNE] Sept policiers agressés : il est urgent d’agir !",
+   "stance": "for"
+  }
+ ]
+}

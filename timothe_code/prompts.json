@@ -69,6 +69,36 @@
       "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}",
       "system": "Tu es un député de droite.",
       "question": ""
+    },
+    "left_level_0": {
+      "enabled": false,
+      "system": null,
+      "question": "",
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}\n\nQuatre articles de presse parus sur le sujet :\n\n{articles_0}"
+    },
+    "left_level_1": {
+      "enabled": false,
+      "system": null,
+      "question": "",
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}\n\nQuatre articles de presse parus sur le sujet :\n\n{articles_1}"
+    },
+    "left_level_2": {
+      "enabled": false,
+      "system": null,
+      "question": "",
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}\n\nQuatre articles de presse parus sur le sujet :\n\n{articles_2}"
+    },
+    "left_level_3": {
+      "enabled": false,
+      "system": null,
+      "question": "",
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}\n\nQuatre articles de presse parus sur le sujet :\n\n{articles_3}"
+    },
+    "left_level_4": {
+      "enabled": false,
+      "system": null,
+      "question": "",
+      "template": "Vote sur le texte de loi suivant. Réponds par « CONTRE », « POUR » ou « ABSTENTION » puis justifie-toi en une ou deux phrases.\n\nTitre : {title}\n\n{voted_text}\n\nQuatre articles de presse parus sur le sujet :\n\n{articles_4}"
     }
   }
 }

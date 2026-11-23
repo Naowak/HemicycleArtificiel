@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -62,6 +63,14 @@ def test_steering_table_metrics():
     assert row["steer_presse"] is None
 
 
+def test_press_dose_alignment_and_gap():
+    votes = {"left_level_0": ("against", "for"), "left_level_2": ("for", "for"), "left_level_4": ("for", "against")}
+    recs = [record(v, bill, label) for v, labels in votes.items() for bill, label in zip(("B0", "B1"), labels)]
+    row = sp.steering_table(recs, BILLS[:2])[0]
+    assert row["dose"] == {0: -1.0, 2: 0.0, 4: 1.0}
+    assert row["dose_slope"] == pytest.approx(0.5) and row["dose_gap"] == 2.0 and row["dose_gap_ci"] == [2.0, 2.0]
+
+
 def test_constant_reader_and_rank1_edit():
     torch.manual_seed(0)
     acts = torch.randn(200, 64) + 2.0
@@ -90,3 +99,48 @@ def test_alignment_summary():
     a = sw.alignment(result, BILLS[:2])
     assert a["left_alignment"] == pytest.approx(0.6) and a["n_opposed"] == 2
     assert a["labels"] == {"for": 1, "against": 1} and a["mean_position"] == pytest.approx(0.1)
+
+
+def test_extract_titles_keeps_assembly_bills_of_left_and_right_authors(tmp_path):
+    def dossier(uid, author, procedure="Proposition de loi ordinaire", stage="AN1", date="2018-01-10T00:00:00"):
+        return {"dossierParlementaire": {
+            "uid": uid, "legislature": "15", "titreDossier": {"titre": "Titre " + uid},
+            "procedureParlementaire": {"libelle": procedure}, "initiateur": {"acteurs": {"acteur": {"acteurRef": author}}},
+            "actesLegislatifs": {"acteLegislatif": {"codeActe": stage, "dateActe": None, "actesLegislatifs": {
+                "acteLegislatif": [{"codeActe": stage + "-DEPOT", "dateActe": date}]}}}}}
+
+    files = {"dataset/groupes.json": {"groupes": {"PO1": {"sigle": "FI", "famille": "gauche_radicale"},
+                                                 "PO2": {"sigle": "LR", "famille": "droite"},
+                                                 "PO3": {"sigle": "LAREM", "famille": "bloc_central"}}},
+             "dataset/deputes.json": {"PA1": {"nom": "A", "groupes": {"FI": ["2017-07-01", "2022-06-01"]}},
+                                      "PA2": {"nom": "B", "groupes": {"LR": ["2017-07-01", None]}},
+                                      "PA3": {"nom": "C", "groupes": {"LAREM": ["2017-07-01", None]}}}}
+    kept = {"D1": dossier("D1", "PA1"), "D2": dossier("D2", "PA2")}
+    skipped = {"D3": dossier("D3", "PA3"), "D4": dossier("D4", "PA1", stage="SN1"),
+               "D5": dossier("D5", "PA1", procedure="Projet de loi ordinaire"), "D6": dossier("D6", "PA1", date="2023-01-10T00:00:00")}
+    for uid, content in dict(kept, **skipped).items():
+        files["sources/dossiers/15/dossierParlementaire/%s.json" % uid] = content
+    for name, content in files.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(content), encoding="utf-8")
+
+    out = tmp_path / "titles.json"
+    sw.extract_titles(str(tmp_path), str(out))
+    assert json.loads(out.read_text(encoding="utf-8")) == [
+        {"dossier": "D1", "legislature": 15, "title": "Titre D1", "group": "FI", "camp": "left"},
+        {"dossier": "D2", "legislature": 15, "title": "Titre D2", "group": "LR", "camp": "right"}]
+
+
+def test_arithmetic_report_lists_states_from_right_to_left(tmp_path):
+    def state(score):
+        return {"held_out": {"score": score, "pos_left": score, "pos_right": -score}, "title_only": score / 2,
+                "left_alignment": score / 4, "mean_position": 0.0, "labels": {"for": 2}, "n_opposed": 2}
+
+    summary = {"baseline": state(0.0), "arith_+0.50": state(0.4), "arith_-0.50": state(-0.4),
+               "left adapter": state(0.8), "right adapter": state(-0.8)}
+    sw.write_arithmetic_report(str(tmp_path), summary, "titles", 10, 5, 4)
+    rows = [line.split("|")[1].strip() for line in (tmp_path / sw.ARITH_REPORT).read_text(encoding="utf-8").splitlines()
+            if line.startswith("| ") and not line.startswith("| state")]
+    assert rows == ["right adapter", "coef -0.50", "baseline", "coef +0.50", "left adapter"]
+    assert "| coef +0.50 | **+0.40** | +0.40 | -0.40 | +0.20 | **+0.10** |" in (tmp_path / sw.ARITH_REPORT).read_text(encoding="utf-8")

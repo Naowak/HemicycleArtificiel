@@ -8,15 +8,20 @@ prompt as the API models (prompt_v1); position = p(POUR) - p(CONTRE). Two experi
               layer, either at inference ("hook") or written into the layer's MLP output matrix ("edit":
               dW = direction u^T, u fitted in closed form so that u . activation ~ 1 on every token).
   arithmetic  Weight arithmetic (Fierro & Roger, 2026). Two small low-rank adapters are trained on short
-              policy proposals (steering_statements.json): "left" votes for the left-wing proposals and
-              against the right-wing ones, "right" the reverse. The model is then steered with
-              W + coef * (dW_left - dW_right), and evaluated on held-out proposals and on the real bills.
+              texts put in the voting prompt: "left" votes for the left-wing ones and against the
+              right-wing ones, "right" the reverse. The texts are policy proposals written for the
+              experiment (steering_statements.json) or, with --train titles, the titles of real private
+              members' bills labelled by the camp of their author (steering_titles.json). The model is
+              then steered with W + coef * (dW_left - dW_right), and evaluated on held-out texts and on
+              the real bills.
 
 Usage, from the repository root (needs a GPU with about 12 GB):
     python timothe_code/steering_weights.py probe        # baseline votes and answer format of the local model
     python timothe_code/steering_weights.py sweep        # run: choose the layer (activation steering on a subset)
     python timothe_code/steering_weights.py run          # -> results/results-<datetime>_weights/
     python timothe_code/steering_weights.py arithmetic   # -> results/results-<datetime>_weights/
+    python timothe_code/steering_weights.py arithmetic --train titles
+    python timothe_code/steering_weights.py extract      # rebuild steering_titles.json from dataset/data/
 """
 
 import argparse
@@ -24,6 +29,7 @@ import collections
 import json
 import logging
 import os
+import random
 import sys
 import time
 
@@ -63,8 +69,22 @@ N_CALIBRATION_BILLS = 12
 # weight arithmetic
 ADAPTER_MODULES = ("q_proj", "v_proj")
 ADAPTER_RANK, ADAPTER_ALPHA = 8, 16
-ADAPTER_LR, ADAPTER_EPOCHS, ADAPTER_BATCH = 2e-4, 12, 6
+ADAPTER_LR = 2e-4
+ADAPTER_SCHEDULE = {"proposals": (12, 6), "titles": (8, 4)}  # training texts: (epochs, batch size)
+CAMPS = ("left", "right")
+PROPOSAL_TITLE = "Proposition"
 N_HELD_OUT_PAIRS = 6
+TITLES_FILE = os.path.join(vp.HERE, "steering_titles.json")
+YANNIS_DATA = os.path.join(vp.ROOT, "dataset", "data")
+PRIVATE_BILL_PROCEDURE = "Proposition de loi"
+TITLE_PREFIX = "proposition de loi : "
+TITLE_TRAIN_LEGISLATURES = (15, 16)
+MAX_TITLE_CHARS = 200
+N_HELD_OUT_TITLES = 150
+SCORE_BATCH = 32
+TRAINED_ON = {"proposals": "short policy proposals written for the experiment",
+              "titles": "titles of real private members' bills of earlier legislatures, left-wing or right-wing "
+                        "according to the group that tabled them"}
 ARITH_COEFS = (-1.5, -1.0, -0.5, -0.25, 0.25, 0.5, 1.0, 1.5)
 ADAPTERS_FILE = "weight_adapters.pt"
 ARITH_REPORT, ARITH_PLOT = "arithmetic_report.md", "arithmetic_dose_response.png"
@@ -120,11 +140,14 @@ def bills():
     return [dp for dp in ds.divisive(ds.load(legislature=LEGISLATURE)) if dp["text_content"]["voted_text_chars"] <= MAX_TEXT_CHARS]
 
 
-def evaluate(tok, model, datapoints, prompts, token_ids, prefill):
+def evaluate(tok, model, datapoints, prompts, token_ids, prefill, title_only=False):
     """{bill id: {"probs", "mass", "position"}} for the model in its current state."""
     out = {}
     for dp in datapoints:
-        text = chat_text(tok, vp.build_messages(dp, VARIANT, prompts), prefill)
+        if title_only:
+            text = short_text(tok, prompts, dp["text_content"]["title"], "", prefill)
+        else:
+            text = chat_text(tok, vp.build_messages(dp, VARIANT, prompts), prefill)
         probs, mass = vote_probs(tok, model, text, token_ids)
         out[dp["id"]] = {"probs": probs, "mass": mass, "position": probs["for"] - probs["against"]}
     return out
@@ -432,10 +455,86 @@ def set_coefs(modules, **coefs):
             m.coefs[name] = coefs.get(name, 0.0)
 
 
-def proposal_text(tok, prompts, statement, prefill):
-    """A short policy proposal put in the same voting prompt as the bills."""
-    user = prompts["variants"][VARIANT]["template"].format(title="Proposition", voted_text=statement, question="")
+def short_text(tok, prompts, title, text, prefill):
+    """A short text (a policy proposal, or nothing after a bill's title) in the same voting prompt as the bills."""
+    user = prompts["variants"][VARIANT]["template"].format(title=title, voted_text=text, question="")
     return chat_text(tok, [{"role": "user", "content": user}], prefill)
+
+
+def as_list(x):
+    return x if isinstance(x, list) else [] if x is None else [x]
+
+
+def first_date(stage):
+    if stage.get("dateActe"):
+        return stage["dateActe"][:10]
+    steps = as_list((stage.get("actesLegislatifs") or {}).get("acteLegislatif"))
+    return next((d for d in map(first_date, steps) if d), None)
+
+
+def extract_titles(data_dir=YANNIS_DATA, out_file=TITLES_FILE):
+    """Write the private members' bills first tabled at the Assemblee whose first author sat in a left or right group.
+
+    One row per dossier: legislature, short title, the author's group when the bill was tabled, and its camp.
+    """
+    with open(os.path.join(data_dir, "dataset", "groupes.json"), encoding="utf-8") as f:
+        family = {g["sigle"]: g["famille"] for g in json.load(f)["groupes"].values()}
+    with open(os.path.join(data_dir, "dataset", "deputes.json"), encoding="utf-8") as f:
+        deputies = json.load(f)
+    rows = {}
+    dossiers = os.path.join(data_dir, "sources", "dossiers")
+    for leg in sorted(os.listdir(dossiers)):
+        folder = os.path.join(dossiers, leg, "dossierParlementaire")
+        for name in sorted(os.listdir(folder)):
+            with open(os.path.join(folder, name), encoding="utf-8") as f:
+                d = json.load(f)
+            d = d.get("dossierParlementaire", d)
+            stages = as_list((d.get("actesLegislatifs") or {}).get("acteLegislatif"))
+            authors = as_list(((d.get("initiateur") or {}).get("acteurs") or {}).get("acteur"))
+            procedure = (d.get("procedureParlementaire") or {}).get("libelle") or ""
+            if not (procedure.startswith(PRIVATE_BILL_PROCEDURE) and authors and stages
+                    and (stages[0].get("codeActe") or "").startswith("AN")):
+                continue
+            date, groups = first_date(stages[0]), deputies.get(authors[0]["acteurRef"], {}).get("groupes", {})
+            group = next((g for g, (start, end) in groups.items() if date and start <= date <= (end or "9999")), None)
+            camp = "left" if family.get(group) in an.LEFT_FAMILIES else "right" if family.get(group) in an.RIGHT_FAMILIES else None
+            if camp:
+                rows[d["uid"]] = {"dossier": d["uid"], "legislature": int(d["legislature"]),
+                                  "title": d["titreDossier"]["titre"], "group": group, "camp": camp}
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump(sorted(rows.values(), key=lambda r: (r["legislature"], r["dossier"])), f, ensure_ascii=False, indent=0)
+    logger.info("%d bills written to %s: %s", len(rows), out_file,
+                dict(collections.Counter((r["legislature"], r["camp"]) for r in rows.values())))
+
+
+def training_texts(source, tok, prompts, prefill, datapoints):
+    """(texts to train on, texts held out), each {"left": [...], "right": [...]} of short voting prompts.
+
+    proposals: the pairs of steering_statements.json, the last ones held out.
+    titles: bills of the earlier legislatures to train, bills of the evaluated legislature held out; the
+    dossiers of the evaluated bills are left out of both.
+    """
+    if source == "proposals":
+        with open(STATEMENTS_FILE, encoding="utf-8") as f:
+            pairs = json.load(f)["pairs"]
+        texts = {"left": [short_text(tok, prompts, PROPOSAL_TITLE, a, prefill) for a, _ in pairs],
+                 "right": [short_text(tok, prompts, PROPOSAL_TITLE, b, prefill) for _, b in pairs]}
+        return ({c: t[:-N_HELD_OUT_PAIRS] for c, t in texts.items()}, {c: t[-N_HELD_OUT_PAIRS:] for c, t in texts.items()})
+    with open(TITLES_FILE, encoding="utf-8") as f:
+        rows = json.load(f)
+    evaluated = {dp["text_content"]["dossier_id"] for dp in datapoints}
+    rng = random.Random(SEED)
+
+    def pool(camp, legislatures):
+        return [short_text(tok, prompts, TITLE_PREFIX + r["title"], "", prefill) for r in rows
+                if r["camp"] == camp and r["legislature"] in legislatures and r["dossier"] not in evaluated
+                and len(r["title"]) <= MAX_TITLE_CHARS]
+
+    train = {c: pool(c, TITLE_TRAIN_LEGISLATURES) for c in CAMPS}
+    held = {c: pool(c, (LEGISLATURE,)) for c in CAMPS}
+    n_train = min(len(t) for t in train.values())
+    return ({c: rng.sample(t, n_train) for c, t in train.items()},
+            {c: rng.sample(t, min(N_HELD_OUT_TITLES, len(t))) for c, t in held.items()})
 
 
 def vote_logprobs(tok, model, texts, token_ids):
@@ -447,26 +546,29 @@ def vote_logprobs(tok, model, texts, token_ids):
 
 
 @torch.no_grad()
-def proposals_score(tok, model, prompts, pairs, token_ids, prefill):
-    """Left score on proposals = (mean position on left-wing ones - on right-wing ones) / 2, with both means."""
-    def mean_position(statements):
-        lp = vote_logprobs(tok, model, [proposal_text(tok, prompts, s, prefill) for s in statements], token_ids)
-        return float((lp["for"].exp() - lp["against"].exp()).mean())
-    left, right = mean_position([a for a, _ in pairs]), mean_position([b for _, b in pairs])
+def camp_score(tok, model, texts, token_ids):
+    """Left score on short texts = (mean position on the left-wing ones - on the right-wing ones) / 2, with both means."""
+    def mean_position(items):
+        values = []
+        for start in range(0, len(items), SCORE_BATCH):
+            lp = vote_logprobs(tok, model, items[start:start + SCORE_BATCH], token_ids)
+            values += (lp["for"].exp() - lp["against"].exp()).tolist()
+        return float(np.mean(values))
+    left, right = mean_position(texts["left"]), mean_position(texts["right"])
     return {"score": (left - right) / 2, "pos_left": left, "pos_right": right}
 
 
-def train_adapter(tok, model, modules, name, examples, token_ids):
+def train_adapter(tok, model, modules, name, examples, token_ids, epochs, batch_size):
     """Train the adapter `name` so that each (text, label) example gets its label as vote."""
     params = [p for m in modules for p in m.add(name)]
     set_coefs(modules, **{name: 1.0})
     optimizer = torch.optim.AdamW(params, lr=ADAPTER_LR)
     generator = torch.Generator().manual_seed(SEED)
-    for epoch in range(ADAPTER_EPOCHS):
+    for epoch in range(epochs):
         order = torch.randperm(len(examples), generator=generator).tolist()
         total = 0.0
-        for start in range(0, len(examples), ADAPTER_BATCH):
-            batch = [examples[i] for i in order[start:start + ADAPTER_BATCH]]
+        for start in range(0, len(examples), batch_size):
+            batch = [examples[i] for i in order[start:start + batch_size]]
             lp = vote_logprobs(tok, model, [t for t, _ in batch], token_ids)
             loss = -torch.stack([lp[label][k] for k, (_, label) in enumerate(batch)]).mean()
             optimizer.zero_grad()
@@ -478,18 +580,17 @@ def train_adapter(tok, model, modules, name, examples, token_ids):
         p.requires_grad_(False)
 
 
-def arithmetic(ctx):
-    """Train the left and right adapters, then steer with coef * (left - right): proposals and bills."""
+def arithmetic(ctx, source):
+    """Train the left and right adapters, then steer with coef * (left - right): short texts and bills."""
     tok, model, datapoints, prompts, token_ids, prefill = ctx
     ids = {label: torch.tensor(v, device=model.device) for label, v in token_ids.items()}
-    with open(STATEMENTS_FILE, encoding="utf-8") as f:
-        pairs = json.load(f)["pairs"]
-    train_pairs, held_pairs = pairs[:-N_HELD_OUT_PAIRS], pairs[-N_HELD_OUT_PAIRS:]
+    train, held = training_texts(source, tok, prompts, prefill, datapoints)
+    logger.info("adapters trained on %s: %d texts per camp, %d held out", source, len(train["left"]), len(held["left"]))
     modules = install_adapters(model)
     for name, left_label, right_label in (("left", "for", "against"), ("right", "against", "for")):
-        examples = [(proposal_text(tok, prompts, a, prefill), left_label) for a, _ in train_pairs]
-        examples += [(proposal_text(tok, prompts, b, prefill), right_label) for _, b in train_pairs]
-        train_adapter(tok, model, modules, name, examples, ids)
+        examples = [(t, left_label) for t in train["left"]] + [(t, right_label) for t in train["right"]]
+        train_adapter(tok, model, modules, name, examples, ids, *ADAPTER_SCHEDULE[source])
+    seen = {c: t[:N_HELD_OUT_TITLES] for c, t in train.items()}
 
     states = {"baseline": {}, "left adapter": {"left": 1.0}, "right adapter": {"right": 1.0}}
     states.update({"arith_%+.2f" % c: {"left": c, "right": -c} for c in ARITH_COEFS})
@@ -497,15 +598,15 @@ def arithmetic(ctx):
     for key, coefs in states.items():
         set_coefs(modules, **coefs)
         evals[key] = evaluate(tok, model, datapoints, prompts, token_ids, prefill)
-        summary[key] = dict(alignment(evals[key], datapoints),
-                            held_out=proposals_score(tok, model, prompts, held_pairs, ids, prefill),
-                            train=proposals_score(tok, model, prompts, train_pairs, ids, prefill))
-        logger.info("%-14s proposals (held-out) %+.2f | bills: left alignment %+.3f, mean position %+.2f, %s", key,
-                    summary[key]["held_out"]["score"], summary[key]["left_alignment"], summary[key]["mean_position"],
-                    summary[key]["labels"])
+        by_title = alignment(evaluate(tok, model, datapoints, prompts, token_ids, prefill, title_only=True), datapoints)
+        summary[key] = dict(alignment(evals[key], datapoints), title_only=by_title["left_alignment"],
+                            held_out=camp_score(tok, model, held, ids), train=camp_score(tok, model, seen, ids))
+        logger.info("%-14s held-out %+.2f (train %+.2f) | bills: left alignment %+.3f (title only %+.3f), mean position %+.2f, %s",
+                    key, summary[key]["held_out"]["score"], summary[key]["train"]["score"], summary[key]["left_alignment"],
+                    summary[key]["title_only"], summary[key]["mean_position"], summary[key]["labels"])
     set_coefs(modules)
 
-    run_dir = vp.new_run_dir("_weights")
+    run_dir = vp.new_run_dir("_weights" if source == "proposals" else "_weights_%s" % source)
     torch.save({"model": MODEL_ID, "modules": ADAPTER_MODULES, "rank": ADAPTER_RANK, "scale": ADAPTER_ALPHA / ADAPTER_RANK,
                 "factors": [{n: (a.detach().cpu(), b.detach().cpu()) for n, (a, b) in m.factors.items()} for m in modules],
                 "how_to": "module i (layers in order, then q_proj, v_proj): W_new = W + coef * scale * (B_left A_left - B_right A_right)"},
@@ -513,38 +614,40 @@ def arithmetic(ctx):
     arith_keys = sorted((k for k in evals if k.startswith("arith_")), key=lambda k: float(k.split("_")[1]))
     shown = [k for k in arith_keys if float(k.split("_")[1]) < 0] + ["baseline"] + [k for k in arith_keys if float(k.split("_")[1]) > 0]
     write_run_folder(run_dir, {k: evals[k] for k in shown}, datapoints, prompts, {"prefill": prefill, "method": "weight arithmetic"},
-                     "WEIGHT ARITHMETIC on %s: left/right adapters trained on short proposals, %d divisive bills" % (MODEL_ID, len(datapoints)))
+                     "WEIGHT ARITHMETIC on %s: left/right adapters trained on %s, %d divisive bills" % (MODEL_ID, source, len(datapoints)))
     with open(os.path.join(run_dir, "arithmetic_summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=1)
-    write_arithmetic_report(run_dir, summary, len(train_pairs), len(held_pairs), len(datapoints))
+    write_arithmetic_report(run_dir, summary, source, len(train["left"]), len(held["left"]), len(datapoints))
     plot_arithmetic(run_dir, summary)
     vp.write_report(run_dir)
     logger.info("results in %s", run_dir)
 
 
-def write_arithmetic_report(run_dir, summary, n_train, n_held, n_bills):
+def write_arithmetic_report(run_dir, summary, source, n_train, n_held, n_bills):
     base = summary["baseline"]
     f2 = lambda x: "-" if x is None else "%+.2f" % x
     lines = ["# Weight arithmetic on %s" % MODEL_ID, "",
-             "Two low-rank adapters (rank %d on the attention query and value matrices of every layer) are trained on %d pairs "
-             "of short policy proposals, put in the voting prompt: the left adapter votes for the left-wing proposal and "
-             "against the right-wing one, the right adapter the reverse. The model is steered with "
-             "W + coef x (dW_left - dW_right); coef > 0 points left." % (ADAPTER_RANK, n_train), "",
-             "- **proposals score** (on the %d held-out pairs): (mean position on left-wing proposals - on right-wing "
-             "ones) / 2; +1 = approves the left's proposals and rejects the right's." % n_held,
+             "Two low-rank adapters (rank %d on the attention query and value matrices of every layer) are trained on %s: "
+             "%d left-wing and %d right-wing texts, each put in the voting prompt. The left adapter votes for the left-wing "
+             "ones and against the right-wing ones, the right adapter the reverse. The model is steered with "
+             "W + coef x (dW_left - dW_right); coef > 0 points left." % (ADAPTER_RANK, TRAINED_ON[source], n_train, n_train), "",
+             "- **held-out score** (%d left-wing and %d right-wing texts of the same kind, not used in training): (mean "
+             "position on the left-wing ones - on the right-wing ones) / 2; +1 = approves the left's and rejects the "
+             "right's." % (n_held, n_held),
              "- **bills: left alignment** (%d divisive bills, %d with left and right opposed): (mean position on bills the "
-             "left supports - on bills it opposes) / 2." % (n_bills, base["n_opposed"]),
+             "left supports - on bills it opposes) / 2. \"Title only\": the same bills without their text." % (n_bills, base["n_opposed"]),
              "- **bills: mean position**: +1 = votes for everything, -1 = against everything.", "",
-             "| state | proposals score | on left proposals | on right proposals | bills: left alignment | bills: mean position | bills: votes |",
-             "|---|---|---|---|---|---|---|"]
+             "| state | held-out score | on left-wing texts | on right-wing texts | bills, title only: left alignment "
+             "| bills: left alignment | bills: mean position | bills: votes |",
+             "|---|---|---|---|---|---|---|---|"]
     order = ["right adapter"] + sorted((k for k in summary if k.startswith("arith_")), key=lambda k: float(k.split("_")[1]))
     order = [k for k in order if not k.startswith("arith_+")] + ["baseline"] + [k for k in order if k.startswith("arith_+")] + ["left adapter"]
     for key in order:
         r = summary[key]
         name = key if not key.startswith("arith_") else "coef %s" % key.split("_")[1]
-        lines.append("| %s | **%s** | %s | %s | **%s** | %s | %s |" % (
+        lines.append("| %s | **%s** | %s | %s | %s | **%s** | %s | %s |" % (
             name, f2(r["held_out"]["score"]), f2(r["held_out"]["pos_left"]), f2(r["held_out"]["pos_right"]),
-            f2(r["left_alignment"]), f2(r["mean_position"]), r["labels"]))
+            f2(r["title_only"]), f2(r["left_alignment"]), f2(r["mean_position"]), r["labels"]))
     with open(os.path.join(run_dir, ARITH_REPORT), "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -557,13 +660,14 @@ def plot_arithmetic(run_dir, summary):
     keys[0.0] = "baseline"
     coefs = sorted(keys)
     fig, axes = plt.subplots(1, 2, figsize=(11, 4))
-    axes[0].plot(coefs, [summary[keys[c]]["held_out"]["score"] for c in coefs], "s-", label="held-out proposals: left score")
+    axes[0].plot(coefs, [summary[keys[c]]["held_out"]["score"] for c in coefs], "s-", label="held-out short texts: left score")
+    axes[0].plot(coefs, [summary[keys[c]]["title_only"] for c in coefs], "^-", label="real bills, title only: left alignment")
     axes[0].plot(coefs, [summary[keys[c]]["left_alignment"] for c in coefs], "o-", label="real bills: left alignment")
     axes[0].set(xlabel="coef of (dW_left - dW_right); > 0 = left", ylabel="-1 = right ... +1 = left",
                 title="%s: political alignment" % MODEL_ID)
     axes[1].plot(coefs, [summary[keys[c]]["mean_position"] for c in coefs], "o-", label="real bills")
     axes[1].plot(coefs, [(summary[keys[c]]["held_out"]["pos_left"] + summary[keys[c]]["held_out"]["pos_right"]) / 2 for c in coefs],
-                 "s-", label="held-out proposals")
+                 "s-", label="held-out short texts")
     axes[1].set(xlabel="coef", ylabel="-1 = against everything ... +1 = for everything", title="Tendency to approve")
     for ax in axes:
         ax.axhline(0, color="gray", lw=0.5)
@@ -679,12 +783,16 @@ def plot(run_dir, summary, layer):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("step", choices=["probe", "sweep", "run", "arithmetic"])
+    parser.add_argument("step", choices=["probe", "sweep", "run", "arithmetic", "extract"])
     parser.add_argument("--layer", type=int, help="run: layer to steer (default: best of the last sweep)")
     parser.add_argument("--prefill", default="**", help="text forced at the start of the model's answer")
     parser.add_argument("--direction", choices=["persona", "statements"], default="persona")
+    parser.add_argument("--train", choices=sorted(ADAPTER_SCHEDULE), default="proposals", help="arithmetic: texts the adapters learn from")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    if args.step == "extract":
+        extract_titles()
+        return
     torch.manual_seed(SEED)
     prompts = vp.load_prompts()
     datapoints = bills()
@@ -701,7 +809,7 @@ def main():
     elif args.step == "sweep":
         sweep(ctx, args.direction)
     elif args.step == "arithmetic":
-        arithmetic(ctx)
+        arithmetic(ctx, args.train)
     else:
         layer = args.layer
         if layer is None:

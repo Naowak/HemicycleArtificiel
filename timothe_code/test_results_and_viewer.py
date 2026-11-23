@@ -35,6 +35,13 @@ def test_run_dir_naming_and_listing(tmp_path):
     assert vp.list_runs(str(tmp_path)) == ["results-2026-11-21_10-05-00_smoke"]
 
 
+def test_runs_are_ordered_by_date_even_with_a_label_before_it(tmp_path):
+    names = ["results-5-seed-bench-2026-11-21_21-03-00", "results-2026-11-22_09-00-00", "results-2026-11-21_08-00-00_smoke"]
+    for name in names:
+        os.makedirs(os.path.join(str(tmp_path), name))
+    assert vp.list_runs(str(tmp_path)) == [names[2], names[0], names[1]]
+
+
 def test_earlier_answers_are_reusable_only_with_same_prompt_and_settings(tmp_path):
     ids = [vp.ds.load()[0]["id"]]
     make_run(str(tmp_path), "results-a", [record(ids[0], "for"), record(ids[0], None, text=None)], ids)
