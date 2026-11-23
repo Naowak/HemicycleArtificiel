@@ -219,10 +219,14 @@ const Modeles = {
     main.select("#llm-rythme").insert("div", "svg").html(legendHTML(this.modeles.map((m) => ({ label: this.shortName(m), color: couleur(m) }))));
   },
 
-  /* La carte : ACP des acteurs. */
+  /* La carte : ACP des acteurs, sur la XVIIe législature seulement (ses textes et ses groupes),
+     pour ne pas mêler des groupes qui n'ont jamais voté les mêmes textes. */
   dessinerCarte(main) {
-    const matrice = this.acteurs.map((a) => this.bills.map((s) => { const p = this.pos(s, a); return p === null ? 0 : p; }));
-    if (matrice.length < 2 || !this.bills.length) return;
+    const bills = this.bills.filter((s) => s.legislature === 17);
+    const groupesXVII = new Set(bills.flatMap((s) => Object.keys(s.group_positions)));
+    const acteurs = this.acteurs.filter((a) => a.modele || groupesXVII.has(a.id));
+    const matrice = acteurs.map((a) => bills.map((s) => { const p = this.pos(s, a); return p === null ? 0 : p; }));
+    if (matrice.length < 2 || !bills.length) return;
     const { coords, part } = this.acp2(matrice);
     const W = 760, H = 460, mg = 40;
     const ext = (k) => d3.extent(coords, (c) => c[k]);
@@ -235,7 +239,7 @@ const Modeles = {
     svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", mg).attr("y2", H - mg).attr("stroke", "#e3e6ea");
     svg.append("text").attr("x", W / 2).attr("y", H - 8).attr("text-anchor", "middle").attr("font-size", 11).attr("fill", "#5b6370")
       .text(`axe 1 (${F.pct(part[0])} de la variance)`);
-    this.acteurs.forEach((a, k) => {
+    acteurs.forEach((a, k) => {
       const c = coords[k];
       const g = svg.append("g").attr("transform", `translate(${x(c.x)},${y(c.y)})`)
         .on("mouseenter", (e) => showTip(tipRows([[esc(a.id), a.modele ? "modèle" : "groupe"]]), e))
