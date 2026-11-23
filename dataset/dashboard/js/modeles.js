@@ -77,7 +77,10 @@ const Modeles = {
 
   /* Scrutins de la variante affichée, ceux qui ont au moins une réponse. */
   votesAvecReponses(d) { return d.scrutins.filter((s) => s.reponses_llm.some((r) => r.variant === this.variante)); },
-  modelesDe(d) { return [...new Set(d.scrutins.flatMap((s) => s.reponses_llm.map((r) => r.model)))]; },
+  /* Modèles ayant répondu à la variante affichée : un modèle sans réponse n'est ni tracé ni compté. */
+  modelesDe(d) {
+    return [...new Set(d.scrutins.flatMap((s) => s.reponses_llm.filter((r) => r.variant === this.variante).map((r) => r.model)))];
+  },
   variantesDe(d) { return [...new Set(d.scrutins.flatMap((s) => s.reponses_llm.map((r) => r.variant)))]; },
   groupesDe(d) {
     const set = new Set();
@@ -94,10 +97,10 @@ const Modeles = {
       main.html(`<div class="empty">Données des modèles introuvables.<br>Lancez <code>python3 timothe_code/export_dashboard.py</code>.</div>`);
       return;
     }
-    this.modeles = this.modelesDe(d);
     this.groupes = this.groupesDe(d);
     const variantes = this.variantesDe(d);
     if (!this.variante || !variantes.includes(this.variante)) this.variante = variantes[0] || null;
+    this.modeles = this.modelesDe(d);  // after the variant is known
     if (!this.modeles.length) {
       main.html(`<div class="empty">Aucune réponse de modèle pour l'instant.</div>`);
       return;
